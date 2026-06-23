@@ -1,0 +1,2 @@
+{"type":"session","id":"oldest-session","timestamp":"2026-01-01T09:00:00.000Z","cwd":"/Users/example/work/alpha","version":"1.0.0"}
+{"type":"message","role":"user","timestamp":"2026-01-01T09:00:01.000Z","content":[{"type":"text","text":"Show project status."}]}
