@@ -2,6 +2,7 @@
 /target/
 **/target/
 Cargo.lock.bak
+src-tauri/gen/
 
 # Node / frontend
 node_modules/

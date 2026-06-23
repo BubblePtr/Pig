@@ -1,0 +1,2 @@
+{"type":"session","id":"newest-session","timestamp":"2026-01-05T15:30:00.000Z","cwd":"/Users/example/code/gamma","version":"1.0.0"}
+{"type":"message","role":"user","timestamp":"2026-01-05T15:30:01.000Z","content":[{"type":"text","text":"/review"}]}
