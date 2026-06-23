@@ -1,0 +1,19 @@
+{
+  "defaultModel": "gpt-5-codex",
+  "defaultProvider": "openai",
+  "defaultThinkingLevel": "high",
+  "theme": "system",
+  "packages": [
+    "@pi/code",
+    {
+      "name": "@pi/docs"
+    }
+  ],
+  "extensions": [
+    {
+      "name": "terminal-tools",
+      "enabled": true
+    },
+    "code-runner"
+  ]
+}

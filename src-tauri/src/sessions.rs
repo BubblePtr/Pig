@@ -486,7 +486,10 @@ impl SessionParser {
                 }
 
                 // Merge top-level and nested-message fields for annotation payload
-                let mut annotation_fields = self.metrics.current_model.clone()
+                let mut annotation_fields = self
+                    .metrics
+                    .current_model
+                    .clone()
                     .map(|model| {
                         let mut map = serde_json::Map::new();
                         map.insert("model".to_owned(), Value::String(model));
@@ -494,11 +497,15 @@ impl SessionParser {
                     })
                     .unwrap_or_default();
                 for (k, v) in record.fields.iter() {
-                    annotation_fields.entry(k.clone()).or_insert_with(|| v.clone());
+                    annotation_fields
+                        .entry(k.clone())
+                        .or_insert_with(|| v.clone());
                 }
                 if let Some(ref msg) = record.message {
                     for (k, v) in msg.fields.iter() {
-                        annotation_fields.entry(k.clone()).or_insert_with(|| v.clone());
+                        annotation_fields
+                            .entry(k.clone())
+                            .or_insert_with(|| v.clone());
                     }
                 }
 
@@ -545,15 +552,13 @@ impl SessionParser {
             None => return false,
         };
 
-        let assistant_turn = match detail
-            .turns
-            .iter_mut()
-            .rev()
-            .find(|t| t.kind == SessionTurnKind::Message && t.role == Some(MessageRole::Assistant))
-        {
-            Some(t) => t,
-            None => return false,
-        };
+        let assistant_turn =
+            match detail.turns.iter_mut().rev().find(|t| {
+                t.kind == SessionTurnKind::Message && t.role == Some(MessageRole::Assistant)
+            }) {
+                Some(t) => t,
+                None => return false,
+            };
 
         let tool_name = record
             .effective_field("toolName")
@@ -754,9 +759,8 @@ fn read_session_summary(path: &Path) -> Result<Option<IndexedSession>, SessionIn
             }
             "model_change" => {
                 metrics.touch(record.timestamp);
-                metrics.current_model =
-                    string_field_from_record(&record, &["to", "model"])
-                        .or_else(|| metrics.current_model.clone());
+                metrics.current_model = string_field_from_record(&record, &["to", "model"])
+                    .or_else(|| metrics.current_model.clone());
             }
             "message"
                 if record.effective_role() == Some(&MessageRole::User)
@@ -871,7 +875,8 @@ impl SessionMetrics {
     }
 
     fn message_model(&mut self, record: &EventRecord) -> Option<String> {
-        if let Some(model) = record.effective_field("model")
+        if let Some(model) = record
+            .effective_field("model")
             .or_else(|| record.effective_field("currentModel"))
             .and_then(Value::as_str)
             .filter(|v| !v.is_empty())
@@ -1474,12 +1479,26 @@ mod tests {
         assert_eq!(detail.turns.len(), 2, "should have 2 turns");
         assert_eq!(detail.turns[0].role, Some(MessageRole::User), "user role");
         assert_eq!(detail.turns[0].parts.len(), 1, "user should have 1 part");
-        assert_eq!(detail.turns[0].parts[0].text.as_deref(), Some("Hello world"));
+        assert_eq!(
+            detail.turns[0].parts[0].text.as_deref(),
+            Some("Hello world")
+        );
         assert_eq!(detail.turns[0].parts[0].part_type, "text");
-        assert_eq!(detail.turns[1].role, Some(MessageRole::Assistant), "assistant role");
-        assert_eq!(detail.turns[1].parts.len(), 3, "assistant should have thinking + text + toolCall");
+        assert_eq!(
+            detail.turns[1].role,
+            Some(MessageRole::Assistant),
+            "assistant role"
+        );
+        assert_eq!(
+            detail.turns[1].parts.len(),
+            3,
+            "assistant should have thinking + text + toolCall"
+        );
         assert_eq!(detail.turns[1].parts[0].part_type, "thinking");
-        assert_eq!(detail.turns[1].parts[0].text.as_deref(), Some("Let me think."));
+        assert_eq!(
+            detail.turns[1].parts[0].text.as_deref(),
+            Some("Let me think.")
+        );
         assert_eq!(detail.turns[1].parts[1].text.as_deref(), Some("Hi there!"));
         assert_eq!(detail.turns[1].parts[2].part_type, "toolCall");
         assert_eq!(detail.turns[1].parts[2].name.as_deref(), Some("list_files"));
@@ -1512,6 +1531,3 @@ mod tests {
         );
     }
 }
-
-
-
