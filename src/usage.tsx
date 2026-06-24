@@ -3,6 +3,7 @@ import { Button, Card, EmptyState as HeroEmptyState, ProgressBar } from "@heroui
 import { KPI, Segment } from "@heroui-pro/react";
 import { RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
+import { SharedElementTransition } from "react-aria-components/SharedElementTransition";
 import { AppFrame } from "./app-shell";
 import { useRefreshOnWindowFocus } from "./refresh";
 import {
@@ -123,21 +124,23 @@ function ModelDistributionView({ models }: { models: ModelDistribution[] }) {
   return (
     <Card>
       <Card.Content>
-      <Segment
-        className="mb-4"
-        selectedKey={mode}
-        size="sm"
-        onSelectionChange={(key) => setMode(key === "tokens" ? "tokens" : "cost")}
-      >
-        <Segment.Item id="cost">
-          <Segment.Separator />
-          Cost
-        </Segment.Item>
-        <Segment.Item id="tokens">
-          <Segment.Separator />
-          Tokens
-        </Segment.Item>
-      </Segment>
+      <SharedElementTransition>
+        <Segment
+          className="mb-4"
+          selectedKey={mode}
+          size="sm"
+          onSelectionChange={(key) => setMode(key === "tokens" ? "tokens" : "cost")}
+        >
+          <Segment.Item id="cost">
+            <Segment.Separator />
+            Cost
+          </Segment.Item>
+          <Segment.Item id="tokens">
+            <Segment.Separator />
+            Tokens
+          </Segment.Item>
+        </Segment>
+      </SharedElementTransition>
       <div className="grid gap-3">
         {models.map((model, index) => {
           const share = mode === "cost" ? model.costShare : model.tokenShare;
