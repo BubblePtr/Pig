@@ -9,6 +9,19 @@
   --pig-color-surface-hover: #f1f2ed;
   --pig-color-border: #d9dbd2;
   --pig-color-danger: #a12d2f;
+  --pig-color-chart-1: #2f6f9f;
+  --pig-color-chart-2: #4f8f5f;
+  --pig-color-chart-3: #b46a3c;
+  --pig-color-chart-4: #7a5aa6;
+  --pig-color-chart-5: #9b4f64;
+  --pig-color-chart-6: #2f7f7b;
+  --pig-color-chart-7: #8a7a35;
+  --pig-color-chart-8: #566b8f;
+  --pig-color-heat-0: #eceee7;
+  --pig-color-heat-1: #cfe3d2;
+  --pig-color-heat-2: #95c6a4;
+  --pig-color-heat-3: #55946f;
+  --pig-color-heat-4: #276749;
   --pig-shadow-sm: 0 1px 2px rgb(24 25 22 / 0.06);
 }
 
@@ -24,6 +37,33 @@
   --shadow-sm: var(--pig-shadow-sm);
   --font-sans:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --pig-color-background: #111310;
+    --pig-color-foreground: #f1f3ed;
+    --pig-color-muted: #a4aa9d;
+    --pig-color-surface: #191c17;
+    --pig-color-surface-muted: #22261f;
+    --pig-color-surface-hover: #2a2f27;
+    --pig-color-border: #343a31;
+    --pig-color-danger: #f07c7f;
+    --pig-color-chart-1: #66a9d7;
+    --pig-color-chart-2: #75bd82;
+    --pig-color-chart-3: #d8945d;
+    --pig-color-chart-4: #a98cd2;
+    --pig-color-chart-5: #d27a91;
+    --pig-color-chart-6: #69bdb6;
+    --pig-color-chart-7: #c4b45d;
+    --pig-color-chart-8: #91a7d0;
+    --pig-color-heat-0: #20241d;
+    --pig-color-heat-1: #294631;
+    --pig-color-heat-2: #356f49;
+    --pig-color-heat-3: #45a060;
+    --pig-color-heat-4: #65d47e;
+    --pig-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.28);
+  }
 }
 
 html {

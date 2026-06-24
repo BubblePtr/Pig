@@ -502,8 +502,8 @@ export function SessionDetailView({
   isError?: boolean;
 }) {
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto flex w-full max-w-5xl flex-col px-6 py-6">
+    <article className="min-h-full px-6 py-6">
+      <div className="mx-auto flex w-full max-w-5xl flex-col">
         <header className="flex min-h-14 flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
           <div className="min-w-0">
             <Link
@@ -511,7 +511,7 @@ export function SessionDetailView({
               className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-muted transition hover:text-foreground"
             >
               <ArrowLeft className="size-4" />
-              Recent sessions
+              Trace sessions
             </Link>
             <h1 className="truncate text-xl font-semibold tracking-normal">
               {session?.project ?? "Session"}
@@ -556,7 +556,7 @@ export function SessionDetailView({
           )}
         </section>
       </div>
-    </main>
+    </article>
   );
 }
 
