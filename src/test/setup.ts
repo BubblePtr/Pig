@@ -8,40 +8,54 @@ afterEach(() => {
 
 class TestResizeObserver implements ResizeObserver {
   private callback: ResizeObserverCallback;
+  private observed = new Set<Element>();
 
   constructor(callback: ResizeObserverCallback) {
     this.callback = callback;
   }
 
   observe(target: Element) {
-    const boxSize = [{ inlineSize: 1024, blockSize: 720 }];
+    this.observed.add(target);
 
-    this.callback(
-      [
-        {
-          target,
-          borderBoxSize: boxSize,
-          contentRect: {
-            x: 0,
-            y: 0,
-            top: 0,
-            left: 0,
-            right: 1024,
-            bottom: 720,
-            width: 1024,
-            height: 720,
-            toJSON: () => ({}),
-          },
-          contentBoxSize: boxSize,
-          devicePixelContentBoxSize: boxSize,
-        } as ResizeObserverEntry,
-      ],
-      this,
-    );
+    window.setTimeout(() => {
+      if (!this.observed.has(target)) {
+        return;
+      }
+
+      const boxSize = [{ inlineSize: 1024, blockSize: 720 }];
+
+      this.callback(
+        [
+          {
+            target,
+            borderBoxSize: boxSize,
+            contentRect: {
+              x: 0,
+              y: 0,
+              top: 0,
+              left: 0,
+              right: 1024,
+              bottom: 720,
+              width: 1024,
+              height: 720,
+              toJSON: () => ({}),
+            },
+            contentBoxSize: boxSize,
+            devicePixelContentBoxSize: boxSize,
+          } as ResizeObserverEntry,
+        ],
+        this,
+      );
+    });
   }
 
-  unobserve() {}
-  disconnect() {}
+  unobserve(target: Element) {
+    this.observed.delete(target);
+  }
+
+  disconnect() {
+    this.observed.clear();
+  }
 }
 
 Object.defineProperty(window, "ResizeObserver", {
@@ -66,6 +80,12 @@ Object.defineProperty(window, "matchMedia", {
 });
 
 Object.defineProperty(HTMLElement.prototype, "scrollTo", {
+  writable: true,
+  configurable: true,
+  value: () => {},
+});
+
+Object.defineProperty(window, "scrollTo", {
   writable: true,
   configurable: true,
   value: () => {},
