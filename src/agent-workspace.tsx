@@ -1,8 +1,15 @@
 import { Button, Card, ScrollShadow, Tooltip } from "@heroui/react";
 import { ChainOfThought, ChatConversation, ChatMessage, PromptInput, Sheet } from "@heroui-pro/react";
 import { Activity, GitBranch } from "lucide-react";
-import { useState } from "react";
+import { useParams, useRouterState } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { AppFrame } from "./app-shell";
+import {
+  getSessionDraft,
+  saveSessionDraft,
+  subscribeSessionDrafts,
+  type SessionDraft,
+} from "./session-drafts";
 import { formatCost, formatTokens } from "./sessions";
 
 type LiveMessage = {
@@ -35,6 +42,11 @@ type AgentWorkspaceFixture = {
     totalCostUsd: number;
     totalTokens: number;
   };
+};
+
+export type SessionDraftSubmitEvent = {
+  projectId: string;
+  prompt: string;
 };
 
 const fixtureWorkspace: AgentWorkspaceFixture = {
@@ -153,6 +165,55 @@ function FullChatComposer() {
   );
 }
 
+function SessionDraftComposer({
+  draft,
+  onDraftChange,
+  onDraftSubmit,
+}: {
+  draft: SessionDraft;
+  onDraftChange: (prompt: string) => void;
+  onDraftSubmit: (event: SessionDraftSubmitEvent) => void;
+}) {
+  const submitDraft = () => {
+    const prompt = draft.prompt.trim();
+
+    if (!prompt) {
+      return;
+    }
+
+    onDraftSubmit({ projectId: draft.projectId, prompt: draft.prompt });
+  };
+
+  return (
+    <section
+      className="flex h-full min-h-0 flex-col justify-end px-4 pb-4 pt-6"
+      data-testid="session-draft-composer"
+    >
+      <div className="mx-auto w-full max-w-[44rem]">
+        <h2 className="mb-3 text-sm font-semibold text-foreground">Session Draft</h2>
+        <PromptInput
+          className="w-full"
+          value={draft.prompt}
+          variant="primary"
+          onSubmit={submitDraft}
+          onValueChange={onDraftChange}
+        >
+          <PromptInput.Shell>
+            <PromptInput.Content>
+              <PromptInput.TextArea placeholder="Describe the first Pi prompt" />
+            </PromptInput.Content>
+            <PromptInput.Toolbar>
+              <PromptInput.ToolbarEnd>
+                <PromptInput.Send aria-label="Submit initial prompt" />
+              </PromptInput.ToolbarEnd>
+            </PromptInput.Toolbar>
+          </PromptInput.Shell>
+        </PromptInput>
+      </div>
+    </section>
+  );
+}
+
 function SessionActionsContent({ workspace }: { workspace: AgentWorkspaceFixture }) {
   return (
     <div className="grid gap-5">
@@ -267,29 +328,63 @@ function SessionActionsSheet({ workspace }: { workspace: AgentWorkspaceFixture }
   );
 }
 
-function LiveSessionColumn({ workspace }: { workspace: AgentWorkspaceFixture }) {
+function LiveSessionColumn({
+  workspace,
+  projectId,
+  showDraft,
+  onDraftSubmit,
+}: {
+  workspace: AgentWorkspaceFixture;
+  projectId: string;
+  showDraft: boolean;
+  onDraftSubmit: (event: SessionDraftSubmitEvent) => void;
+}) {
+  const [sessionDraft, setSessionDraft] = useState(() => getSessionDraft(projectId));
+
+  useEffect(() => {
+    setSessionDraft(getSessionDraft(projectId));
+
+    return subscribeSessionDrafts(() => {
+      setSessionDraft(getSessionDraft(projectId));
+    });
+  }, [projectId]);
+
+  const handleDraftChange = (prompt: string) => {
+    setSessionDraft(saveSessionDraft(projectId, prompt));
+  };
+
   return (
     <main className="h-full min-h-0 min-w-0" data-testid="live-session-column">
       <Card className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
         <div className="flex min-h-0 flex-1 flex-col">
-          <ChatConversation
-            aria-label="Live Chat messages"
-            className="min-h-0 flex-1"
-            initial="instant"
-          >
-            <ChatConversation.Content className="mx-auto flex w-full max-w-[44rem] flex-col gap-8 px-4 py-6">
-              {workspace.liveMessages.map((message) => (
-                <LiveChatMessage
-                  key={message.id}
-                  message={message}
-                  timeline={message.role === "assistant" ? workspace.runTimeline : undefined}
-                />
-              ))}
-              <ChatConversation.ScrollAnchor />
-            </ChatConversation.Content>
-          </ChatConversation>
+          {showDraft && sessionDraft ? (
+            <SessionDraftComposer
+              draft={sessionDraft}
+              onDraftChange={handleDraftChange}
+              onDraftSubmit={onDraftSubmit}
+            />
+          ) : (
+            <>
+              <ChatConversation
+                aria-label="Live Chat messages"
+                className="min-h-0 flex-1"
+                initial="instant"
+              >
+                <ChatConversation.Content className="mx-auto flex w-full max-w-[44rem] flex-col gap-8 px-4 py-6">
+                  {workspace.liveMessages.map((message) => (
+                    <LiveChatMessage
+                      key={message.id}
+                      message={message}
+                      timeline={message.role === "assistant" ? workspace.runTimeline : undefined}
+                    />
+                  ))}
+                  <ChatConversation.ScrollAnchor />
+                </ChatConversation.Content>
+              </ChatConversation>
 
-          <FullChatComposer />
+              <FullChatComposer />
+            </>
+          )}
         </div>
       </Card>
     </main>
@@ -297,9 +392,15 @@ function LiveSessionColumn({ workspace }: { workspace: AgentWorkspaceFixture }) 
 }
 
 export function AgentWorkspaceSessionsView({
+  projectId = fixtureWorkspace.id,
+  showDraft = false,
   workspace = fixtureWorkspace,
+  onDraftSubmit = () => {},
 }: {
+  projectId?: string;
+  showDraft?: boolean;
   workspace?: AgentWorkspaceFixture;
+  onDraftSubmit?: (event: SessionDraftSubmitEvent) => void;
 }) {
   return (
     <article
@@ -308,7 +409,12 @@ export function AgentWorkspaceSessionsView({
     >
       <div className="mx-auto flex h-full min-h-0 w-full max-w-[96rem] flex-col gap-4">
         <div className="min-h-0 flex-1">
-          <LiveSessionColumn workspace={workspace} />
+          <LiveSessionColumn
+            projectId={projectId}
+            showDraft={showDraft}
+            workspace={workspace}
+            onDraftSubmit={onDraftSubmit}
+          />
         </div>
       </div>
     </article>
@@ -316,11 +422,23 @@ export function AgentWorkspaceSessionsView({
 }
 
 export function AgentWorkspaceSessionsPage() {
+  const { projectId } = useParams({ from: "/projects/$projectId/sessions" });
+  const showDraft = useRouterState({
+    select: (state) => {
+      const search = state.location.search as { view?: string };
+
+      return search.view === "draft";
+    },
+  });
   const workspace = fixtureWorkspace;
 
   return (
     <AppFrame toolbarActions={<SessionActionsSheet workspace={workspace} />}>
-      <AgentWorkspaceSessionsView workspace={workspace} />
+      <AgentWorkspaceSessionsView
+        projectId={projectId}
+        showDraft={showDraft}
+        workspace={workspace}
+      />
     </AppFrame>
   );
 }

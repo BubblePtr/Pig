@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
   Outlet,
@@ -8,8 +8,9 @@ import {
   createRoute,
   createRouter,
 } from "@tanstack/react-router";
-import { describe, expect, it } from "vitest";
-import { AgentWorkspaceSessionsPage } from "./agent-workspace";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AgentWorkspaceSessionsPage, AgentWorkspaceSessionsView } from "./agent-workspace";
+import { getSessionDraft, saveSessionDraft } from "./session-drafts";
 
 function renderProjectSessions(path = "/projects/pig/sessions") {
   const rootRoute = createRootRoute({
@@ -29,6 +30,10 @@ function renderProjectSessions(path = "/projects/pig/sessions") {
 }
 
 describe("AgentWorkspaceSessionsPage", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
   it("renders a Project-scoped Sessions view with Live Chat and the action surface", async () => {
     const user = userEvent.setup();
 
@@ -125,5 +130,109 @@ describe("AgentWorkspaceSessionsPage", () => {
         /fixture|slice|not connected|future slices|projection|CONTEXT\.md|PRD|ADR/i,
       ),
     ).not.toBeInTheDocument();
+  });
+
+  it("opens a Project-scoped Session Draft from New Session without adding a session row", async () => {
+    const user = userEvent.setup();
+
+    renderProjectSessions();
+
+    const projectNavigation = await screen.findByLabelText("Pig project sessions");
+    const initialRows = within(projectNavigation).getAllByRole("row");
+
+    await user.click(screen.getByRole("button", { name: "New Session for Pig" }));
+
+    const draftComposer = await screen.findByTestId("session-draft-composer");
+
+    expect(within(draftComposer).getByText("Session Draft")).toBeInTheDocument();
+    expect(
+      within(draftComposer).getByPlaceholderText("Describe the first Pi prompt"),
+    ).toBeInTheDocument();
+    expect(within(projectNavigation).getAllByRole("row")).toHaveLength(
+      initialRows.length,
+    );
+    expect(within(projectNavigation).queryByText("Session Draft")).not.toBeInTheDocument();
+  });
+
+  it("only shows the draft composer when draft view is selected", async () => {
+    saveSessionDraft("pig", "Keep this draft available");
+
+    renderProjectSessions("/projects/pig/sessions");
+
+    const liveColumn = await screen.findByTestId("live-session-column");
+
+    expect(within(liveColumn).queryByTestId("session-draft-composer")).not.toBeInTheDocument();
+    expect(
+      within(liveColumn).getByText("Project Sessions keep live Pi work separate from Analyze evidence."),
+    ).toBeInTheDocument();
+    expect(within(liveColumn).getByPlaceholderText("What do you want to know?")).toBeInTheDocument();
+  });
+
+  it("restores the same Project draft after repeated New Session clicks and reload", async () => {
+    const user = userEvent.setup();
+    const firstRender = renderProjectSessions();
+
+    await user.click(await screen.findByRole("row", { name: "New Session" }));
+    fireEvent.change(screen.getByPlaceholderText("Describe the first Pi prompt"), {
+      target: { value: "Keep this initial prompt" },
+    });
+
+    expect(getSessionDraft("pig")?.prompt).toBe("Keep this initial prompt");
+
+    await user.click(screen.getByRole("button", { name: "New Session for Pig" }));
+
+    expect(screen.getByPlaceholderText("Describe the first Pi prompt")).toHaveValue(
+      "Keep this initial prompt",
+    );
+
+    firstRender.unmount();
+    renderProjectSessions("/projects/pig/sessions?view=draft");
+
+    expect(await screen.findByPlaceholderText("Describe the first Pi prompt")).toHaveValue(
+      "Keep this initial prompt",
+    );
+  });
+
+  it("submits the draft through a creation seam without clearing persisted text", async () => {
+    const user = userEvent.setup();
+    const onDraftSubmit = vi.fn();
+
+    saveSessionDraft("pig-docs", "Summarize the docs ADR");
+    render(
+      <AgentWorkspaceSessionsView
+        projectId="pig-docs"
+        showDraft
+        workspace={{
+          id: "pig-docs",
+          name: "Pig Docs",
+          projectRoot: "/Users/void/code/opensource/Pig/docs",
+          repoRoot: "/Users/void/code/opensource/Pig",
+          selectedSessionId: "session-docs-review",
+          liveMessages: [],
+          runTimeline: [],
+          checkout: {
+            mode: "Foreground local checkout",
+            root: "/Users/void/code/opensource/Pig",
+            runtimeCwd: "/Users/void/code/opensource/Pig/docs",
+          },
+          summary: {
+            model: "gpt-5-codex",
+            totalCostUsd: 0,
+            totalTokens: 0,
+          },
+        }}
+        onDraftSubmit={onDraftSubmit}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Submit initial prompt" }));
+
+    expect(onDraftSubmit).toHaveBeenCalledWith({
+      projectId: "pig-docs",
+      prompt: "Summarize the docs ADR",
+    });
+    expect(screen.getByPlaceholderText("Describe the first Pi prompt")).toHaveValue(
+      "Summarize the docs ADR",
+    );
   });
 });

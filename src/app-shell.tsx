@@ -1,7 +1,12 @@
 import { useRouter, useRouterState } from "@tanstack/react-router";
 import { AppLayout, Navbar, Sidebar } from "@heroui-pro/react";
-import { BarChart3, Circle, GitBranch, ListTree, Settings } from "lucide-react";
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { BarChart3, Circle, GitBranch, ListTree, Plus, Settings } from "lucide-react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  ensureSessionDraft,
+  hasSessionDraft,
+  subscribeSessionDrafts,
+} from "./session-drafts";
 
 type AppFrameProps = {
   sidebar?: ReactNode;
@@ -108,21 +113,71 @@ function SidebarSessionGlyph({
   return <Circle aria-hidden="true" className="size-2 fill-muted text-muted" />;
 }
 
-function ProjectNavigation({ pathname }: { pathname: string }) {
+function DraftBadge() {
+  return (
+    <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[0.625rem] font-medium leading-none text-primary">
+      Draft
+    </span>
+  );
+}
+
+function ProjectNavigation({
+  draftViewActive,
+  pathname,
+  onNewSession,
+}: {
+  draftViewActive: boolean;
+  pathname: string;
+  onNewSession: (projectId: string) => void;
+}) {
   const projectActive = pathname.startsWith("/projects/");
+  const [hasDraft, setHasDraft] = useState(() => hasSessionDraft(sidebarProject.id));
+
+  useEffect(
+    () =>
+      subscribeSessionDrafts(() => {
+        setHasDraft(hasSessionDraft(sidebarProject.id));
+      }),
+    [],
+  );
 
   return (
     <Sidebar.Group data-testid="sidebar-projects">
-      <Sidebar.GroupLabel className="px-3 text-sm normal-case">
-        {sidebarProject.name}
+      <Sidebar.GroupLabel className="flex items-center gap-2 px-3 text-sm normal-case">
+        <span className="min-w-0 flex-1 truncate">{sidebarProject.name}</span>
+        {hasDraft ? <DraftBadge /> : null}
+        <button
+          aria-label={`New Session for ${sidebarProject.name}`}
+          className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-muted/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          type="button"
+          onClick={() => onNewSession(sidebarProject.id)}
+        >
+          <Plus aria-hidden="true" className="size-3.5" />
+        </button>
       </Sidebar.GroupLabel>
       <Sidebar.Menu aria-label="Pig project sessions" showGuideLines={false}>
+        <Sidebar.MenuItem
+          id={`${sidebarProject.id}-new-session`}
+          isCurrent={draftViewActive}
+          textValue="New Session"
+          onAction={() => onNewSession(sidebarProject.id)}
+        >
+          <Sidebar.MenuIcon>
+            <Plus className="size-4" />
+          </Sidebar.MenuIcon>
+          <Sidebar.MenuLabel>New Session</Sidebar.MenuLabel>
+          {hasDraft ? (
+            <Sidebar.MenuActions className="ml-auto">
+              <DraftBadge />
+            </Sidebar.MenuActions>
+          ) : null}
+        </Sidebar.MenuItem>
         {sidebarProject.sessions.map((session) => (
           <Sidebar.MenuItem
             key={session.id}
             href={sidebarProject.route}
             id={session.id}
-            isCurrent={projectActive && session.active}
+            isCurrent={!draftViewActive && projectActive && session.active}
             textValue={session.title}
           >
             <Sidebar.MenuIcon className="justify-center">
@@ -141,7 +196,15 @@ function ProjectNavigation({ pathname }: { pathname: string }) {
   );
 }
 
-function WorkspaceNavigation({ pathname }: { pathname: string }) {
+function WorkspaceNavigation({
+  draftViewActive,
+  pathname,
+  onNewSession,
+}: {
+  draftViewActive: boolean;
+  pathname: string;
+  onNewSession: (projectId: string) => void;
+}) {
   return (
     <Sidebar.Group
       className="min-h-0 flex-1 overflow-y-auto"
@@ -150,7 +213,11 @@ function WorkspaceNavigation({ pathname }: { pathname: string }) {
       <Sidebar.GroupLabel className="px-3 text-sm normal-case">
         Workspace
       </Sidebar.GroupLabel>
-      <ProjectNavigation pathname={pathname} />
+      <ProjectNavigation
+        draftViewActive={draftViewActive}
+        pathname={pathname}
+        onNewSession={onNewSession}
+      />
     </Sidebar.Group>
   );
 }
@@ -238,7 +305,15 @@ function SystemNavigation({ pathname }: { pathname: string }) {
   );
 }
 
-function SidebarPanelContent({ pathname }: { pathname: string }) {
+function SidebarPanelContent({
+  draftViewActive,
+  pathname,
+  onNewSession,
+}: {
+  draftViewActive: boolean;
+  pathname: string;
+  onNewSession: (projectId: string) => void;
+}) {
   return (
     <>
       <Sidebar.Header
@@ -256,7 +331,11 @@ function SidebarPanelContent({ pathname }: { pathname: string }) {
       </Sidebar.Header>
       <Sidebar.Content className="min-h-0 flex-1 flex-col overflow-hidden">
         <AnalyzeNavigation pathname={pathname} />
-        <WorkspaceNavigation pathname={pathname} />
+        <WorkspaceNavigation
+          draftViewActive={draftViewActive}
+          pathname={pathname}
+          onNewSession={onNewSession}
+        />
       </Sidebar.Content>
       <Sidebar.Footer className="shrink-0">
         <SystemNavigation pathname={pathname} />
@@ -268,6 +347,13 @@ function SidebarPanelContent({ pathname }: { pathname: string }) {
 export function AppFrame({ children, toolbarActions }: AppFrameProps) {
   const router = useRouter();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const draftViewActive = useRouterState({
+    select: (state) => {
+      const search = state.location.search as { view?: string };
+
+      return pathname.startsWith("/projects/") && search.view === "draft";
+    },
+  });
   const activeTab = getActiveTab(pathname);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const collapsedTrafficSpaceStyle = {
@@ -275,6 +361,13 @@ export function AppFrame({ children, toolbarActions }: AppFrameProps) {
     marginRight: sidebarOpen ? `-${titlebarGap}` : "0px",
     transition: "width 0.2s ease, margin-right 0.2s ease",
   } as CSSProperties;
+  const handleNewSession = (projectId: string) => {
+    ensureSessionDraft(projectId);
+    void router.navigate({
+      to: sidebarProject.route as never,
+      search: { view: "draft" } as never,
+    });
+  };
 
   return (
     <AppLayout
@@ -320,7 +413,11 @@ export function AppFrame({ children, toolbarActions }: AppFrameProps) {
       scrollMode="content"
       sidebar={
         <Sidebar style={sidebarStyle}>
-          <SidebarPanelContent pathname={pathname} />
+          <SidebarPanelContent
+            draftViewActive={draftViewActive}
+            pathname={pathname}
+            onNewSession={handleNewSession}
+          />
         </Sidebar>
       }
       sidebarCollapsible="offcanvas"

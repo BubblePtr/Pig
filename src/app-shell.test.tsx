@@ -10,8 +10,9 @@ import {
   createRoute,
   createRouter,
 } from "@tanstack/react-router";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { AppFrame } from "./app-shell";
+import { saveSessionDraft } from "./session-drafts";
 
 function renderAppFrame(
   path = "/",
@@ -64,6 +65,10 @@ function renderAppFrame(
 }
 
 describe("AppFrame", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
   it("places Project sessions in the primary sidebar", async () => {
     renderAppFrame("/projects/pig/sessions");
 
@@ -76,6 +81,23 @@ describe("AppFrame", () => {
     expect(within(projectNavigation).getByText("Analyze boundary pass")).toBeInTheDocument();
     expect(within(projectNavigation).getByText("Active now")).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 1, name: "Sessions" })).toBeInTheDocument();
+  });
+
+  it("shows New Session and Project plus entry points with a lightweight draft indicator", async () => {
+    saveSessionDraft("pig", "Existing Project draft");
+
+    renderAppFrame("/projects/pig/sessions");
+
+    expect(await screen.findByText("Main content")).toBeInTheDocument();
+    const projectGroup = screen.getByTestId("sidebar-projects");
+    const projectNavigation = within(projectGroup).getByLabelText("Pig project sessions");
+
+    expect(
+      within(projectGroup).getByRole("button", { name: "New Session for Pig" }),
+    ).toBeInTheDocument();
+    expect(within(projectNavigation).getByRole("row", { name: "New Session" })).toBeInTheDocument();
+    expect(within(projectGroup).getAllByText("Draft")).toHaveLength(2);
+    expect(within(projectNavigation).queryByText("Session Draft")).not.toBeInTheDocument();
   });
 
   it("renders Analyze as an expanded second-level sidebar menu", async () => {
