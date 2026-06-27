@@ -308,6 +308,51 @@ describe("Session Projection state", () => {
     expect(processing.updatedAt).toBe("2026-06-26T08:03:00.000Z");
   });
 
+  it("promotes a matching queued follow-up when the runtime emits the user message", () => {
+    const base = projection({
+      id: "active-run",
+      status: "running",
+      piSessionId: "pi-session-active",
+      updatedAt: "2026-06-26T08:00:00.000Z",
+    });
+    const queued = applySessionProjectionEvent(base, {
+      type: "queued-message-added",
+      queuedMessage: {
+        id: "queued-1",
+        piSessionId: "pi-session-active",
+        body: "Then refresh the browser screenshot.",
+        status: "pending",
+        createdAt: "2026-06-26T08:02:00.000Z",
+      },
+    });
+    const processing = applySessionProjectionEvent(queued, {
+      type: "runtime-event-received",
+      event: {
+        id: "runtime-event-follow-up",
+        piSessionId: "pi-session-active",
+        kind: "message",
+        role: "user",
+        body: "Then refresh the browser screenshot.",
+        timestamp: "2026-06-26T08:03:00.000Z",
+      },
+    });
+
+    expect(processing.queuedMessages).toEqual([
+      expect.objectContaining({
+        id: "queued-1",
+        status: "processing",
+        processingStartedAt: "2026-06-26T08:03:00.000Z",
+      }),
+    ]);
+    expect(processing.runtimeEvents).toEqual([
+      expect.objectContaining({
+        id: "runtime-event-follow-up",
+        role: "user",
+        body: "Then refresh the browser screenshot.",
+      }),
+    ]);
+  });
+
   it("records steer control events in the active Live Chat stream", () => {
     const base = projection({
       id: "active-run",

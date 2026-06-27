@@ -4,6 +4,11 @@ import { Activity, Archive, CircleStop, GitBranch } from "lucide-react";
 import { useParams, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { AppFrame, defaultSidebarProjectSessionProjections } from "./app-shell";
+import {
+  createExecutionCheckoutManager,
+  type ExecutionCheckoutManager,
+} from "./execution-checkout";
+import { createTauriExecutionCheckoutGitClient } from "./execution-checkout-tauri";
 import { createDefaultPiRuntimeBridge } from "./pi-runtime-factory";
 import type { PiRuntimeBridge, PiSessionState } from "./pi-runtime-bridge";
 import {
@@ -224,12 +229,14 @@ function QueuedMessageList({
 function FullChatComposer({
   queueMode = false,
   projection,
+  onPromptSubmit,
   onQueueSubmit,
   onWithdrawQueuedMessage,
   onSteerSubmit,
 }: {
   queueMode?: boolean;
   projection?: SessionProjection | null;
+  onPromptSubmit?: (message: string) => Promise<void> | void;
   onQueueSubmit?: (message: string) => Promise<void> | void;
   onWithdrawQueuedMessage?: (queuedMessageId: string) => Promise<void> | void;
   onSteerSubmit?: (message: string) => Promise<void> | void;
@@ -257,7 +264,13 @@ function FullChatComposer({
       return;
     }
 
-    setDraft("");
+    try {
+      await onPromptSubmit?.(message);
+      setComposerError(null);
+      setDraft("");
+    } catch (error) {
+      setComposerError(errorMessage(error));
+    }
   };
   const submitSteer = async () => {
     const message = draft.trim();
@@ -872,6 +885,19 @@ function LiveSessionColumn({
   }, [sessionProjection?.id]);
 
   useEffect(() => {
+    if (!sessionProjection) {
+      return;
+    }
+
+    setCreationProjection((currentProjection) =>
+      currentProjection?.id === sessionProjection.id ? sessionProjection : null,
+    );
+    setInteractionProjection((currentProjection) =>
+      currentProjection?.id === sessionProjection.id ? sessionProjection : null,
+    );
+  }, [sessionProjection]);
+
+  useEffect(() => {
     if (!showDraft && sessionProjection?.unreadResult) {
       onLatestMessageRendered?.(sessionProjection.id);
     }
@@ -944,6 +970,29 @@ function LiveSessionColumn({
       applySessionProjectionEvent(liveProjection, {
         type: "queued-message-added",
         queuedMessage,
+      }),
+    );
+  };
+  const handlePromptSubmit = async (message: string) => {
+    if (!liveProjection?.piSessionId || readOnlyProjection) {
+      return;
+    }
+
+    await restoreProjectionRuntimeState({
+      bridge: getRuntimeBridge(),
+      projection: liveProjection,
+      workspace,
+    });
+
+    const accepted = await getRuntimeBridge().sendInitialPrompt({
+      piSessionId: liveProjection.piSessionId,
+      prompt: message,
+    });
+
+    commitInteractionProjection(
+      applySessionProjectionEvent(liveProjection, {
+        type: "runtime-event-received",
+        event: accepted.event,
       }),
     );
   };
@@ -1029,6 +1078,7 @@ function LiveSessionColumn({
                 <FullChatComposer
                   queueMode={queueMode}
                   projection={liveProjection}
+                  onPromptSubmit={handlePromptSubmit}
                   onQueueSubmit={handleQueueSubmit}
                   onWithdrawQueuedMessage={handleWithdrawQueuedMessage}
                   onSteerSubmit={handleSteerSubmit}
@@ -1048,6 +1098,8 @@ export function AgentWorkspaceSessionsView({
   workspace = fixtureWorkspace,
   onDraftSubmit = () => {},
   sessionCreator,
+  checkoutManager,
+  hasActiveSession,
   runtimeBridge,
   sessionProjection,
   onProjectionChange,
@@ -1058,6 +1110,8 @@ export function AgentWorkspaceSessionsView({
   workspace?: AgentWorkspaceFixture;
   onDraftSubmit?: (event: SessionDraftSubmitEvent) => void;
   sessionCreator?: SessionCreator;
+  checkoutManager?: ExecutionCheckoutManager;
+  hasActiveSession?: boolean;
   runtimeBridge?: PiRuntimeBridge;
   sessionProjection?: SessionProjection | null;
   onProjectionChange?: (projection: SessionProjection) => void;
@@ -1076,10 +1130,20 @@ export function AgentWorkspaceSessionsView({
     ? () => runtimeBridge
     : getDefaultRuntimeBridge;
   const [defaultProjectionStore] = useState(() => createInMemorySessionProjectionStore());
+  const [defaultCheckoutManager] = useState(() =>
+    createExecutionCheckoutManager({
+      gitClient: createTauriExecutionCheckoutGitClient(),
+    }),
+  );
+  const activeCheckoutManager = checkoutManager ?? defaultCheckoutManager;
+  const shouldCreateBackgroundSession =
+    hasActiveSession ?? Boolean(sessionProjection && isSessionProjectionActive(sessionProjection));
   const defaultSessionCreator: SessionCreator = (input: SessionCreatorInput) =>
     createSessionFromDraft({
       ...input,
       bridge: getActiveRuntimeBridge(),
+      checkoutManager: activeCheckoutManager,
+      executionMode: shouldCreateBackgroundSession ? "background" : "foreground",
       projections: defaultProjectionStore,
     });
 
@@ -1175,6 +1239,7 @@ export function AgentWorkspaceSessionsPage() {
         workspace={workspace}
         runtimeBridge={runtimeBridge}
         sessionProjection={selectedSessionProjection}
+        hasActiveSession={sessionProjections.some(isSessionProjectionActive)}
         onProjectionChange={handleProjectionChange}
         onLatestMessageRendered={handleLatestMessageRendered}
       />

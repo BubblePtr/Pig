@@ -276,6 +276,43 @@ function unreadResultFromRuntimeEvent(
   return event.role === "assistant" ? true : projection.unreadResult;
 }
 
+function queuedMessageProcessingIndex(
+  projection: SessionProjection,
+  event: PiRuntimeEvent,
+) {
+  if (event.kind !== "message" || event.role !== "user") {
+    return -1;
+  }
+
+  return projection.queuedMessages.findIndex(
+    (queuedMessage) =>
+      queuedMessage.status === "pending" &&
+      queuedMessage.piSessionId === event.piSessionId &&
+      queuedMessage.body === event.body,
+  );
+}
+
+function queuedMessagesAfterRuntimeEvent(
+  projection: SessionProjection,
+  event: PiRuntimeEvent,
+) {
+  const processingIndex = queuedMessageProcessingIndex(projection, event);
+
+  if (processingIndex === -1) {
+    return projection.queuedMessages;
+  }
+
+  return projection.queuedMessages.map((queuedMessage, index) =>
+    index === processingIndex
+      ? {
+          ...queuedMessage,
+          status: "processing" as const,
+          processingStartedAt: event.timestamp,
+        }
+      : queuedMessage,
+  );
+}
+
 export function applySessionProjectionEvent(
   projection: SessionProjection,
   event: SessionProjectionEvent,
@@ -314,6 +351,7 @@ export function applySessionProjectionEvent(
               : "running",
         creationStage: event.stage ?? projection.creationStage,
         runtimeEvents: [...projection.runtimeEvents, { ...event.event }],
+        queuedMessages: queuedMessagesAfterRuntimeEvent(projection, event.event),
         summary: mergeRuntimeSummary(projection.summary, event.event.summary),
         unreadResult: unreadResultFromRuntimeEvent(projection, event.event),
         updatedAt: event.event.timestamp,
