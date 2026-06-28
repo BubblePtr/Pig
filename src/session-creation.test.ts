@@ -103,6 +103,17 @@ describe("Session Creation state machine", () => {
     });
 
     transport.emitEvent({
+      type: "message_update",
+      message: {
+        role: "assistant",
+        content: [{ type: "text", text: "Live" }],
+      },
+      assistantMessageEvent: {
+        type: "text_delta",
+        delta: "Live",
+      },
+    });
+    transport.emitEvent({
       type: "message_end",
       message: {
         role: "assistant",
@@ -161,6 +172,11 @@ describe("Session Creation state machine", () => {
       },
       updatedAt: "2026-06-26T08:00:05.000Z",
     });
+    expect(
+      projections
+        .get("session-1")
+        ?.runtimeEvents.filter((event) => event.role === "assistant"),
+    ).toHaveLength(1);
 
     if (!result.ok) {
       throw new Error("expected session creation to succeed");

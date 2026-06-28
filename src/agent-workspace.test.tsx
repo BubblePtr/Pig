@@ -74,11 +74,14 @@ describe("AgentWorkspaceSessionsPage", () => {
     expect(within(liveColumn).queryByRole("heading", { name: "Run timeline" })).not.toBeInTheDocument();
     expect(within(liveColumn).queryByRole("button", { name: "Session actions" })).not.toBeInTheDocument();
     expect(liveColumn).toHaveClass("h-full");
+    expect(sessionsView).toHaveClass("pt-6", "pb-0");
+    expect(sessionsView).not.toHaveClass("py-6");
     const sessionActionsButton = within(navbarActions).getByRole("button", {
       name: "Session actions",
     });
     const chatConversation = liveColumn.querySelector('[data-slot="chat-conversation"]');
     const promptInput = liveColumn.querySelector('[data-slot="prompt-input"]');
+    const composer = liveColumn.querySelector('[data-testid="full-chat-composer"]');
 
     expect(sessionActionsButton).toBeInTheDocument();
     expect(container.querySelector('[data-slot="navbar-spacer"]')).toHaveAttribute(
@@ -101,6 +104,8 @@ describe("AgentWorkspaceSessionsPage", () => {
     expect(liveColumn.querySelectorAll('[data-slot="chain-of-thought-step"]')).toHaveLength(3);
     expect(within(liveColumn).getByText("Project context loaded")).toBeInTheDocument();
     expect(promptInput).toBeInTheDocument();
+    expect(composer).toBeInTheDocument();
+    expect(composer).toHaveClass("mt-auto", "pb-3");
     expect(liveColumn.querySelector('[data-slot="prompt-input-shell"]')).toBeInTheDocument();
     expect(liveColumn.querySelector('[data-slot="prompt-input-textarea"]')).toBeInTheDocument();
     expect(liveColumn.querySelector('[data-slot="prompt-input-send"]')).toBeInTheDocument();
@@ -110,8 +115,8 @@ describe("AgentWorkspaceSessionsPage", () => {
     expect(within(liveColumn).getByRole("button", { name: "Stop" })).toBeInTheDocument();
     expect(within(liveColumn).queryByRole("button", { name: "Send" })).not.toBeInTheDocument();
     expect(
-      within(liveColumn).getByText("Queue is the default while Pi is running."),
-    ).toBeInTheDocument();
+      within(liveColumn).queryByText("Queue is the default while Pi is running."),
+    ).not.toBeInTheDocument();
     expect(within(navbarActions).queryByRole("button", { name: "Stop" })).not.toBeInTheDocument();
     expect(screen.queryByRole("dialog", { name: "Session actions" })).not.toBeInTheDocument();
 
@@ -227,8 +232,13 @@ describe("AgentWorkspaceSessionsPage", () => {
     });
     await user.click(screen.getByRole("button", { name: "Submit initial prompt" }));
     expect(
-      await screen.findByText("Queue is the default while Pi is running."),
+      await within(screen.getByTestId("live-session-column")).findByRole("button", {
+        name: "Stop",
+      }),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Queue is the default while Pi is running."),
+    ).not.toBeInTheDocument();
 
     await user.click(
       within(screen.getByTestId("live-session-column")).getByRole("button", { name: "Stop" }),
@@ -938,8 +948,13 @@ describe("AgentWorkspaceSessionsPage", () => {
 
     await user.click(screen.getByRole("button", { name: "Submit initial prompt" }));
     expect(
-      await screen.findByText("Queue is the default while Pi is running."),
+      await within(screen.getByTestId("live-session-column")).findByRole("button", {
+        name: "Stop",
+      }),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Queue is the default while Pi is running."),
+    ).not.toBeInTheDocument();
 
     const liveColumn = screen.getByTestId("live-session-column");
 

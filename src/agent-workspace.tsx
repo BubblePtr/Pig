@@ -84,7 +84,10 @@ export type SessionDraftSubmitEvent = {
   prompt: string;
 };
 
-type SessionCreatorInput = Omit<CreateSessionFromDraftInput, "bridge" | "projections">;
+type SessionCreatorInput = Omit<
+  CreateSessionFromDraftInput,
+  "bridge" | "projections"
+>;
 
 type SessionCreator = (
   input: SessionCreatorInput,
@@ -149,7 +152,9 @@ function LiveChatMessage({
       <ChatMessage.User>
         <ChatMessage.Bubble>
           {message.controlLabel ? (
-            <p className="mb-1 text-xs font-medium text-muted">{message.controlLabel}</p>
+            <p className="mb-1 text-xs font-medium text-muted">
+              {message.controlLabel}
+            </p>
           ) : null}
           <ChatMessage.Content>{message.body}</ChatMessage.Content>
         </ChatMessage.Bubble>
@@ -162,7 +167,9 @@ function LiveChatMessage({
       <ChatMessage.Avatar alt="Pi agent" fallback="Pi" />
       <ChatMessage.Body>
         {message.controlLabel ? (
-          <p className="mb-1 text-xs font-medium text-muted">{message.controlLabel}</p>
+          <p className="mb-1 text-xs font-medium text-muted">
+            {message.controlLabel}
+          </p>
         ) : null}
         <ChatMessage.Content>{message.body}</ChatMessage.Content>
         {timeline.length ? (
@@ -200,7 +207,10 @@ function QueuedMessageList({
   }
 
   return (
-    <div className="mx-auto mb-3 grid w-full max-w-[44rem] gap-2" data-testid="queued-message-list">
+    <div
+      className="mx-auto mb-3 grid w-full max-w-[44rem] gap-2"
+      data-testid="queued-message-list"
+    >
       {queuedMessages.map((queuedMessage) => (
         <div
           key={queuedMessage.id}
@@ -211,7 +221,9 @@ function QueuedMessageList({
               <p className="text-xs font-medium text-muted">
                 {queuedMessage.status === "withdrawn" ? "Withdrawn" : "Queued"}
               </p>
-              <p className="mt-1 break-words text-foreground">{queuedMessage.body}</p>
+              <p className="mt-1 break-words text-foreground">
+                {queuedMessage.body}
+              </p>
             </div>
             {queuedMessage.status === "pending" ? (
               <Button
@@ -305,11 +317,16 @@ function FullChatComposer({
   };
 
   return (
-    <div className="shrink-0 px-4 pb-4 pt-3">
+    <div
+      className="mt-auto shrink-0 px-4 pb-3 pt-3"
+      data-testid="full-chat-composer"
+    >
       {projection ? (
         <QueuedMessageList
           projection={projection}
-          onWithdraw={(queuedMessageId) => void onWithdrawQueuedMessage?.(queuedMessageId)}
+          onWithdraw={(queuedMessageId) =>
+            void onWithdrawQueuedMessage?.(queuedMessageId)
+          }
         />
       ) : null}
       <PromptInput
@@ -330,7 +347,11 @@ function FullChatComposer({
           <PromptInput.Toolbar>
             <PromptInput.ToolbarEnd>
               {queueMode ? (
-                <Button size="sm" variant="secondary" onPress={() => void submitSteer()}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onPress={() => void submitSteer()}
+                >
                   Steer
                 </Button>
               ) : null}
@@ -338,21 +359,23 @@ function FullChatComposer({
             </PromptInput.ToolbarEnd>
           </PromptInput.Toolbar>
         </PromptInput.Shell>
-        <PromptInput.Footer>
-          {composerError ? (
-            <span role="status">{composerError}</span>
-          ) : queueMode ? (
-            "Queue is the default while Pi is running."
-          ) : (
-            "AI can make mistakes. Check important info."
-          )}
-        </PromptInput.Footer>
+        {composerError || !queueMode ? (
+          <PromptInput.Footer>
+            {composerError ? (
+              <span role="status">{composerError}</span>
+            ) : (
+              "AI can make mistakes. Check important info."
+            )}
+          </PromptInput.Footer>
+        ) : null}
       </PromptInput>
     </div>
   );
 }
 
-function liveMessagesFromProjection(projection: SessionProjection): LiveMessage[] {
+function liveMessagesFromProjection(
+  projection: SessionProjection,
+): LiveMessage[] {
   const projectedMessages = projection.runtimeEvents
     .filter(
       (event) =>
@@ -361,22 +384,27 @@ function liveMessagesFromProjection(projection: SessionProjection): LiveMessage[
         event.kind === "status" ||
         event.kind === "error",
     )
-    .map((event): LiveMessage => ({
-      id: event.id,
-      role:
-        event.role === "user"
-          ? "user"
-          : event.role === "assistant"
-            ? "assistant"
-            : "assistant",
-      body: event.body,
-      controlLabel:
-        event.kind === "control" || event.kind === "status" || event.kind === "error"
-          ? (event.title ?? "Control")
-          : undefined,
-    }));
+    .map(
+      (event): LiveMessage => ({
+        id: event.id,
+        role:
+          event.role === "user"
+            ? "user"
+            : event.role === "assistant"
+              ? "assistant"
+              : "assistant",
+        body: event.body,
+        controlLabel:
+          event.kind === "control" ||
+          event.kind === "status" ||
+          event.kind === "error"
+            ? (event.title ?? "Control")
+            : undefined,
+      }),
+    );
   const hasInitialPromptEvent = projectedMessages.some(
-    (message) => message.role === "user" && message.body === projection.initialPrompt,
+    (message) =>
+      message.role === "user" && message.body === projection.initialPrompt,
   );
 
   if (hasInitialPromptEvent) {
@@ -393,7 +421,9 @@ function liveMessagesFromProjection(projection: SessionProjection): LiveMessage[
   ];
 }
 
-function runTimelineFromProjection(projection: SessionProjection): RunTimelineItem[] {
+function runTimelineFromProjection(
+  projection: SessionProjection,
+): RunTimelineItem[] {
   return projection.runtimeEvents
     .filter((event) => event.kind === "tool-call")
     .map((event) => ({
@@ -408,7 +438,11 @@ function isReadOnlyProjection(projection: SessionProjection | null) {
     return false;
   }
 
-  return projection.stale || projection.status === "completed" || projection.status === "failed";
+  return (
+    projection.stale ||
+    projection.status === "completed" ||
+    projection.status === "failed"
+  );
 }
 
 function SessionDraftComposer({
@@ -438,7 +472,9 @@ function SessionDraftComposer({
       data-testid="session-draft-composer"
     >
       <div className="mx-auto w-full max-w-[44rem]">
-        <h2 className="mb-3 text-sm font-semibold text-foreground">Session Draft</h2>
+        <h2 className="mb-3 text-sm font-semibold text-foreground">
+          Session Draft
+        </h2>
         {creationProjection ? (
           <div
             aria-live="polite"
@@ -447,7 +483,9 @@ function SessionDraftComposer({
           >
             {creationProjection.failure ? (
               <>
-                <p className="font-medium text-foreground">Session creation failed</p>
+                <p className="font-medium text-foreground">
+                  Session creation failed
+                </p>
                 <dl className="mt-2 grid gap-1">
                   <div className="flex items-center gap-2">
                     <dt className="text-muted">Stage</dt>
@@ -457,7 +495,9 @@ function SessionDraftComposer({
                   </div>
                   <div className="flex items-center gap-2">
                     <dt className="text-muted">Error</dt>
-                    <dd className="text-foreground">{creationProjection.failure.message}</dd>
+                    <dd className="text-foreground">
+                      {creationProjection.failure.message}
+                    </dd>
                   </div>
                 </dl>
               </>
@@ -503,7 +543,10 @@ function checkoutModeLabel(mode: string) {
   return mode;
 }
 
-export function SessionActionsContent({ workspace, projection }: SessionActionsContentProps) {
+export function SessionActionsContent({
+  workspace,
+  projection,
+}: SessionActionsContentProps) {
   const checkout = projection?.checkout
     ? {
         mode: checkoutModeLabel(projection.checkout.mode),
@@ -543,7 +586,9 @@ export function SessionActionsContent({ workspace, projection }: SessionActionsC
         provider: null,
         ...workspace.summary,
       };
-  const archiveAllowed = projection ? canArchiveSessionProjection(projection) : true;
+  const archiveAllowed = projection
+    ? canArchiveSessionProjection(projection)
+    : true;
 
   return (
     <div className="grid gap-5">
@@ -562,35 +607,55 @@ export function SessionActionsContent({ workspace, projection }: SessionActionsC
         <dl className="mt-3 grid gap-3 text-sm">
           <div>
             <dt className="text-xs font-medium uppercase text-muted">Mode</dt>
-            <dd className="mt-1 break-words text-foreground">{checkout.mode}</dd>
+            <dd className="mt-1 break-words text-foreground">
+              {checkout.mode}
+            </dd>
           </div>
           <div>
             <dt className="text-xs font-medium uppercase text-muted">Root</dt>
-            <dd className="mt-1 break-words text-foreground">{checkout.root}</dd>
+            <dd className="mt-1 break-words text-foreground">
+              {checkout.root}
+            </dd>
           </div>
           <div>
-            <dt className="text-xs font-medium uppercase text-muted">Runtime cwd</dt>
-            <dd className="mt-1 break-words text-foreground">{checkout.runtimeCwd}</dd>
+            <dt className="text-xs font-medium uppercase text-muted">
+              Runtime cwd
+            </dt>
+            <dd className="mt-1 break-words text-foreground">
+              {checkout.runtimeCwd}
+            </dd>
           </div>
         </dl>
         <details className="mt-4 rounded-md border border-default/70 px-3 py-2 text-sm">
-          <summary className="cursor-default text-muted">Advanced checkout details</summary>
+          <summary className="cursor-default text-muted">
+            Advanced checkout details
+          </summary>
           <dl className="mt-3 grid gap-3">
             {checkout.repoRoot ? (
               <div>
-                <dt className="text-xs font-medium uppercase text-muted">Repo root</dt>
-                <dd className="mt-1 break-words text-foreground">{checkout.repoRoot}</dd>
+                <dt className="text-xs font-medium uppercase text-muted">
+                  Repo root
+                </dt>
+                <dd className="mt-1 break-words text-foreground">
+                  {checkout.repoRoot}
+                </dd>
               </div>
             ) : null}
             {checkout.projectRoot ? (
               <div>
-                <dt className="text-xs font-medium uppercase text-muted">Project root</dt>
-                <dd className="mt-1 break-words text-foreground">{checkout.projectRoot}</dd>
+                <dt className="text-xs font-medium uppercase text-muted">
+                  Project root
+                </dt>
+                <dd className="mt-1 break-words text-foreground">
+                  {checkout.projectRoot}
+                </dd>
               </div>
             ) : null}
             {checkout.projectRelativePath ? (
               <div>
-                <dt className="text-xs font-medium uppercase text-muted">Project relative path</dt>
+                <dt className="text-xs font-medium uppercase text-muted">
+                  Project relative path
+                </dt>
                 <dd className="mt-1 break-words text-foreground">
                   {checkout.projectRelativePath}
                 </dd>
@@ -598,12 +663,18 @@ export function SessionActionsContent({ workspace, projection }: SessionActionsC
             ) : null}
             {checkout.diffRoot && checkout.diffRoot !== checkout.root ? (
               <div>
-                <dt className="text-xs font-medium uppercase text-muted">Diff root</dt>
-                <dd className="mt-1 break-words text-foreground">{checkout.diffRoot}</dd>
+                <dt className="text-xs font-medium uppercase text-muted">
+                  Diff root
+                </dt>
+                <dd className="mt-1 break-words text-foreground">
+                  {checkout.diffRoot}
+                </dd>
               </div>
             ) : null}
             <div>
-              <dt className="text-xs font-medium uppercase text-muted">Lifecycle</dt>
+              <dt className="text-xs font-medium uppercase text-muted">
+                Lifecycle
+              </dt>
               <dd className="mt-1 break-words text-foreground">
                 {[
                   checkout.sessionBound ? "Session-bound" : "Shared checkout",
@@ -620,7 +691,9 @@ export function SessionActionsContent({ workspace, projection }: SessionActionsC
       </section>
 
       <section>
-        <h3 className="text-sm font-semibold text-foreground">Model and cost</h3>
+        <h3 className="text-sm font-semibold text-foreground">
+          Model and cost
+        </h3>
         <dl className="mt-3 grid gap-3 text-sm">
           <div className="flex items-center justify-between gap-3">
             <dt className="text-muted">Model</dt>
@@ -631,16 +704,22 @@ export function SessionActionsContent({ workspace, projection }: SessionActionsC
           {summary.provider ? (
             <div className="flex items-center justify-between gap-3">
               <dt className="text-muted">Provider</dt>
-              <dd className="font-medium text-foreground">{summary.provider}</dd>
+              <dd className="font-medium text-foreground">
+                {summary.provider}
+              </dd>
             </div>
           ) : null}
           <div className="flex items-center justify-between gap-3">
             <dt className="text-muted">Cost</dt>
-            <dd className="font-medium text-foreground">{formatCost(summary.totalCostUsd)}</dd>
+            <dd className="font-medium text-foreground">
+              {formatCost(summary.totalCostUsd)}
+            </dd>
           </div>
           <div className="flex items-center justify-between gap-3">
             <dt className="text-muted">Tokens</dt>
-            <dd className="font-medium text-foreground">{formatTokens(summary.totalTokens)}</dd>
+            <dd className="font-medium text-foreground">
+              {formatTokens(summary.totalTokens)}
+            </dd>
           </div>
         </dl>
       </section>
@@ -648,11 +727,7 @@ export function SessionActionsContent({ workspace, projection }: SessionActionsC
       <section>
         <h3 className="text-sm font-semibold text-foreground">Archive</h3>
         <div className="mt-3">
-          <Button
-            isDisabled={!archiveAllowed}
-            size="sm"
-            variant="outline"
-          >
+          <Button isDisabled={!archiveAllowed} size="sm" variant="outline">
             <Archive className="size-4" />
             Archive Session
           </Button>
@@ -716,7 +791,10 @@ function SessionActionsSheet({
               </Sheet.Header>
               <Sheet.Body>
                 <ScrollShadow className="max-h-[calc(100vh-10rem)] overflow-y-auto">
-                  <SessionActionsContent workspace={workspace} projection={projection} />
+                  <SessionActionsContent
+                    workspace={workspace}
+                    projection={projection}
+                  />
                 </ScrollShadow>
               </Sheet.Body>
             </Sheet.Dialog>
@@ -754,7 +832,9 @@ function runtimeStateStatusFromProjection(
 }
 
 function messageFromError(error: unknown) {
-  return error instanceof Error ? error.message : "Pi could not stop the active run.";
+  return error instanceof Error
+    ? error.message
+    : "Pi could not stop the active run.";
 }
 
 async function restoreProjectionRuntimeState(input: {
@@ -818,9 +898,8 @@ function LiveSessionColumn({
   const [sessionDraft, setSessionDraft] = useState<SessionDraft | null>(() =>
     getSessionDraft(projectId),
   );
-  const [creationProjection, setCreationProjection] = useState<SessionProjection | null>(
-    null,
-  );
+  const [creationProjection, setCreationProjection] =
+    useState<SessionProjection | null>(null);
   const [interactionProjection, setInteractionProjection] =
     useState<SessionProjection | null>(null);
   const [stoppingRun, setStoppingRun] = useState(false);
@@ -903,10 +982,18 @@ function LiveSessionColumn({
   };
   const liveProjection =
     interactionProjection ?? creationProjection ?? sessionProjection ?? null;
-  const projectionMessages = liveProjection ? liveMessagesFromProjection(liveProjection) : [];
-  const projectionTimeline = liveProjection ? runTimelineFromProjection(liveProjection) : [];
-  const liveMessages = projectionMessages.length ? projectionMessages : workspace.liveMessages;
-  const runTimeline = projectionTimeline.length ? projectionTimeline : workspace.runTimeline;
+  const projectionMessages = liveProjection
+    ? liveMessagesFromProjection(liveProjection)
+    : [];
+  const projectionTimeline = liveProjection
+    ? runTimelineFromProjection(liveProjection)
+    : [];
+  const liveMessages = projectionMessages.length
+    ? projectionMessages
+    : workspace.liveMessages;
+  const runTimeline = projectionTimeline.length
+    ? projectionTimeline
+    : workspace.runTimeline;
   const readOnlyProjection = isReadOnlyProjection(liveProjection);
   const queueMode =
     Boolean(liveProjection?.piSessionId) &&
@@ -1128,7 +1215,9 @@ export function AgentWorkspaceSessionsView({
   const getActiveRuntimeBridge = runtimeBridge
     ? () => runtimeBridge
     : getDefaultRuntimeBridge;
-  const [defaultProjectionStore] = useState(() => createInMemorySessionProjectionStore());
+  const [defaultProjectionStore] = useState(() =>
+    createInMemorySessionProjectionStore(),
+  );
   const [defaultCheckoutManager] = useState(() =>
     createExecutionCheckoutManager({
       gitClient: createTauriExecutionCheckoutGitClient(),
@@ -1136,19 +1225,22 @@ export function AgentWorkspaceSessionsView({
   );
   const activeCheckoutManager = checkoutManager ?? defaultCheckoutManager;
   const shouldCreateBackgroundSession =
-    hasActiveSession ?? Boolean(sessionProjection && isSessionProjectionActive(sessionProjection));
+    hasActiveSession ??
+    Boolean(sessionProjection && isSessionProjectionActive(sessionProjection));
   const defaultSessionCreator: SessionCreator = (input: SessionCreatorInput) =>
     createSessionFromDraft({
       ...input,
       bridge: getActiveRuntimeBridge(),
       checkoutManager: activeCheckoutManager,
-      executionMode: shouldCreateBackgroundSession ? "background" : "foreground",
+      executionMode: shouldCreateBackgroundSession
+        ? "background"
+        : "foreground",
       projections: defaultProjectionStore,
     });
 
   return (
     <article
-      className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden px-6 py-6"
+      className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden px-6 pb-0 pt-6"
       data-testid="project-sessions-view"
     >
       <div className="mx-auto flex h-full min-h-0 w-full max-w-[96rem] flex-col gap-4">
@@ -1185,10 +1277,14 @@ export function AgentWorkspaceSessionsPage() {
     defaultSidebarProjectSessionProjections,
   );
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(
-    () => getSessionProjectionListItems(defaultSidebarProjectSessionProjections)[0]?.id ?? null,
+    () =>
+      getSessionProjectionListItems(defaultSidebarProjectSessionProjections)[0]
+        ?.id ?? null,
   );
   const selectedSessionProjection =
-    sessionProjections.find((projection) => projection.id === selectedSessionId) ?? null;
+    sessionProjections.find(
+      (projection) => projection.id === selectedSessionId,
+    ) ?? null;
   const handleProjectionChange = (nextProjection: SessionProjection) => {
     setSelectedSessionId(nextProjection.id);
     setSessionProjections((projections) => {

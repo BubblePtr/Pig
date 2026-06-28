@@ -1,4 +1,4 @@
-import { invoke as invokeTauri } from "@tauri-apps/api/core";
+import { invoke as invokeTauri, isTauri as isTauriCore } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import browserSessionSummaries from "./fixtures/browser-session-summaries.json";
 import type { SessionDetail } from "./session-detail";
@@ -21,7 +21,9 @@ const emptyConfigInventory = {
 const browserSessionSummaryFixture = browserSessionSummaries as SessionSummary[];
 
 export function isTauriRuntime() {
-  return typeof window !== "undefined" && window.__TAURI_INTERNALS__ !== undefined;
+  return isTauriCore() || (
+    typeof window !== "undefined" && window.__TAURI_INTERNALS__ !== undefined
+  );
 }
 
 function browserSessionDetail(summary: SessionSummary): SessionDetail {

@@ -18,7 +18,7 @@ body {
 }
 
 .pig-app-layout .sidebar__offcanvas-wrapper {
-  --sidebar-width: 16rem;
+  --sidebar-width: 280px;
 }
 
 .pig-header-chrome {

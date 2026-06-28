@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { invoke as tauriInvoke } from "@tauri-apps/api/core";
+import { invoke as tauriInvoke, isTauri as isTauriCore } from "@tauri-apps/api/core";
 import type { SessionSummary } from "./sessions";
 import type { SessionDetail } from "./session-detail";
 import { invoke, isTauriRuntime, onWindowFocusChanged } from "./tauri-runtime";
 
 vi.mock("@tauri-apps/api/core", () => ({
+  isTauri: vi.fn(() => false),
   invoke: vi.fn(async (command: string) => `tauri:${command}`),
 }));
 
@@ -25,12 +26,21 @@ describe("tauri runtime bridge", () => {
   afterEach(() => {
     delete window.__TAURI_INTERNALS__;
     vi.clearAllMocks();
+    vi.mocked(isTauriCore).mockReturnValue(false);
   });
 
   it("detects whether Tauri internals are available", () => {
     expect(isTauriRuntime()).toBe(false);
 
     window.__TAURI_INTERNALS__ = {};
+
+    expect(isTauriRuntime()).toBe(true);
+  });
+
+  it("uses Tauri core detection when internals are not exposed directly", () => {
+    expect(isTauriRuntime()).toBe(false);
+
+    vi.mocked(isTauriCore).mockReturnValue(true);
 
     expect(isTauriRuntime()).toBe(true);
   });
@@ -78,6 +88,14 @@ describe("tauri runtime bridge", () => {
 
   it("delegates commands to Tauri when internals are available", async () => {
     window.__TAURI_INTERNALS__ = {};
+
+    await expect(invoke("list_sessions")).resolves.toBe("tauri:list_sessions");
+
+    expect(tauriInvoke).toHaveBeenCalledWith("list_sessions", undefined);
+  });
+
+  it("delegates commands to Tauri when core detects the runtime", async () => {
+    vi.mocked(isTauriCore).mockReturnValue(true);
 
     await expect(invoke("list_sessions")).resolves.toBe("tauri:list_sessions");
 
