@@ -43,6 +43,10 @@ export function createTauriPiRpcTransport(
         for (const listener of listeners) {
           listener(payload);
         }
+      }).catch((error) => {
+        unlistenPromise = null;
+
+        throw error;
       });
     }
 
@@ -63,6 +67,7 @@ export function createTauriPiRpcTransport(
 
   return {
     async start(input: PiRpcTransportStartInput) {
+      await ensureListening();
       await invoke<void>("start_pi_rpc_runtime", { input });
     },
 

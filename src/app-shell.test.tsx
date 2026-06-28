@@ -217,7 +217,7 @@ describe("AppFrame", () => {
     expect(headerChrome).toHaveClass("pig-header-chrome");
     expect(headerChrome).toHaveStyle({
       "--pig-header-height": "40px",
-      "--pig-main-left": "16rem",
+      "--pig-main-left": "280px",
       "--pig-traffic-width": "88px",
     });
     const macTrafficSpace = within(headerChrome).getByTestId("mac-traffic-space");
@@ -267,12 +267,12 @@ describe("AppFrame", () => {
 
     expect(headerChrome).toHaveStyle({ height: "40px" });
     expect(mainWindow.trafficLightPosition.y).toBe(headerHeight / 2 + 2);
-    expect(titleTrack).toHaveStyle({ "--pig-main-left": "16rem" });
-    expect(titleTrack).toHaveStyle({ "--pig-title-x": "16rem" });
+    expect(titleTrack).toHaveStyle({ "--pig-main-left": "280px" });
+    expect(titleTrack).toHaveStyle({ "--pig-title-x": "280px" });
     expect(titleTrack).toHaveStyle({ left: "0px" });
     expect(title).toHaveStyle({
-      "--pig-title-x": "16rem",
-      transform: "translateX(16rem)",
+      "--pig-title-x": "280px",
+      transform: "translateX(280px)",
     });
     expect(trigger).toHaveStyle({ width: "28px", height: "28px" });
     expect(screen.getByTestId("header-chrome-left")).toHaveClass("pig-header-chrome__left");
@@ -340,13 +340,13 @@ describe("AppFrame", () => {
     });
 
     expect(container.querySelector('[data-testid="collapsed-traffic-space"]')).not.toBeInTheDocument();
-    expect(headerChrome).toHaveStyle({ "--pig-main-left": "16rem" });
-    expect(titleTrack).toHaveStyle({ "--pig-main-left": "16rem" });
-    expect(titleTrack).toHaveStyle({ "--pig-title-x": "16rem" });
+    expect(headerChrome).toHaveStyle({ "--pig-main-left": "280px" });
+    expect(titleTrack).toHaveStyle({ "--pig-main-left": "280px" });
+    expect(titleTrack).toHaveStyle({ "--pig-title-x": "280px" });
     expect(titleTrack).toHaveStyle({ left: "0px" });
     expect(title).toHaveStyle({
-      "--pig-title-x": "16rem",
-      transform: "translateX(16rem)",
+      "--pig-title-x": "280px",
+      transform: "translateX(280px)",
     });
 
     await user.click(screen.getByRole("button", { name: "Collapse sidebar" }));
@@ -531,16 +531,16 @@ describe("AppFrame", () => {
     const styles = readFileSync(join(process.cwd(), "src/styles.css"), "utf8");
     const source = readFileSync(join(process.cwd(), "src/app-shell.tsx"), "utf8");
 
-    expect(sidebar).toHaveStyle({ "--sidebar-width": "16rem" });
+    expect(sidebar).toHaveStyle({ "--sidebar-width": "280px" });
     expect(sidebarWrapper).toBeInTheDocument();
     expect(styles).toContain(".pig-app-layout .sidebar__offcanvas-wrapper");
-    expect(styles).toContain("--sidebar-width: 16rem;");
+    expect(styles).toContain("--sidebar-width: 280px;");
     expect(styles).toContain(".pig-app-layout[data-resizable] .sidebar__offcanvas-wrapper");
     expect(styles).toContain(".pig-app-layout[data-resizable] [data-slot=\"sidebar\"]");
     expect(styles).toContain("min-width: 100%;");
-    expect(source).toContain('const sidebarDefaultSize = "16rem";');
-    expect(source).toContain('const sidebarMinSize = "14rem";');
-    expect(source).toContain('const sidebarMaxSize = "22rem";');
+    expect(source).toContain('const sidebarDefaultSize = "280px";');
+    expect(source).toContain('const sidebarMinSize = "240px";');
+    expect(source).toContain('const sidebarMaxSize = "360px";');
     expect(source).toContain("sidebarDefaultSize={sidebarDefaultSize}");
     expect(source).toContain("sidebarMinSize={sidebarMinSize}");
     expect(source).toContain("sidebarMaxSize={sidebarMaxSize}");

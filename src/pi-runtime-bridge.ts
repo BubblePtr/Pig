@@ -363,9 +363,12 @@ function normalizeRpcEvent(input: {
   const { rawEvent, piSessionId, now, idFactory } = input;
   const timestamp = timestampFrom(rawEvent.timestamp, now());
 
+  if (rawEvent.type === "message_update") {
+    return null;
+  }
+
   if (
     rawEvent.type === "message_start" ||
-    rawEvent.type === "message_update" ||
     rawEvent.type === "message_end" ||
     rawEvent.type === "turn_end"
   ) {

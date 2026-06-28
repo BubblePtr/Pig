@@ -105,6 +105,33 @@ describe("Pi RPC Tauri transport", () => {
     expect(unlisten).toHaveBeenCalledTimes(1);
   });
 
+  it("fails startup when the WebView cannot subscribe to Pi RPC events", async () => {
+    const listen = vi.fn(async () => {
+      throw new Error("listen denied");
+    });
+    const invocations: Array<{ command: string; args?: Record<string, unknown> }> = [];
+    const invoke: NonNullable<TauriPiRpcTransportOptions["invoke"]> = async <T,>(
+      command: string,
+      args?: Record<string, unknown>,
+    ) => {
+      invocations.push({ command, args });
+
+      return undefined as T;
+    };
+    const transport = createTauriPiRpcTransport({ invoke, listen });
+
+    transport.onEvent(() => {});
+
+    await expect(
+      transport.start({
+        command: "pi",
+        args: ["--mode", "rpc", "--session-id", "session-1"],
+        cwd: "/Users/void/code/opensource/Pig",
+      }),
+    ).rejects.toThrow("listen denied");
+    expect(invocations).toEqual([]);
+  });
+
   it("keeps the WebView transport free of Node process imports", () => {
     const source = readFileSync(join(process.cwd(), "src/pi-rpc-transport.ts"), "utf8");
 

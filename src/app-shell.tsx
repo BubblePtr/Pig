@@ -167,9 +167,9 @@ const systemNavigationItems = [
   },
 ] as const;
 
-const sidebarDefaultSize = "16rem";
-const sidebarMinSize = "14rem";
-const sidebarMaxSize = "22rem";
+const sidebarDefaultSize = "280px";
+const sidebarMinSize = "240px";
+const sidebarMaxSize = "360px";
 const sidebarStyle = {
   "--sidebar-width": sidebarDefaultSize,
 } as CSSProperties;
