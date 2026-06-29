@@ -7,7 +7,7 @@ import {
   utilityProcess,
 } from "electron";
 import { join } from "node:path";
-import type { BackendRpcEvent, BackendRpcResponse } from "../src/backend/service";
+import type { BackendRpcEvent, BackendRpcResponse } from "@pig/backend";
 
 type PendingRequest = {
   resolve: (value: unknown) => void;

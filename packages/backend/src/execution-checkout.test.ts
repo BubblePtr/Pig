@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
-import { createNodeExecutionCheckoutGitClient } from "./backend/execution-checkout";
+import { createNodeExecutionCheckoutGitClient } from "./execution-checkout";
 
 function git(cwd: string, args: string[]) {
   execFileSync("git", args, { cwd, stdio: "pipe" });

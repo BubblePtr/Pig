@@ -8,7 +8,7 @@ import {
   classifyTitle,
   createSessionIndexCache,
   parseSession,
-} from "./backend/sessions";
+} from "./sessions";
 
 function fixtureAgentDir() {
   return join(process.cwd(), "fixtures/pi-agent");

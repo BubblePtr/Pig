@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { BackendRpcEvent } from "../src/backend/service";
+import type { BackendRpcEvent } from "@pig/backend";
 import type { PigRendererApi } from "../src/runtime";
 
 const api: PigRendererApi = {

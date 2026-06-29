@@ -2,8 +2,8 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { createNodePiRpcProcess } from "./backend/pi-rpc";
-import type { PiRpcRawEvent } from "./pi-runtime-bridge";
+import { createNodePiRpcProcess } from "./pi-rpc";
+import type { PiRpcRawEvent } from "@pig/core";
 
 async function writePiFixtureScript() {
   const dir = await mkdtemp(join(tmpdir(), "pig-pi-rpc-"));

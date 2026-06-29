@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { PiRuntimeBridgeError } from "./pi-runtime-bridge";
 import { createInMemoryPiRuntimeBridge } from "./in-memory-pi-runtime-bridge";
 import { createPiRpcRuntimeBridge } from "./pi-rpc-runtime-bridge";
-import { createFakePiRpcTransport } from "./pi-rpc-transport.fakes";
+import { createFakePiRpcTransport } from "@pig/core/testing";
 
 describe("Pi Runtime Bridge contract", () => {
   it("sends the initial prompt through Pi RPC and streams normalized runtime events", async () => {

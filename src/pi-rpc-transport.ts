@@ -1,4 +1,4 @@
-import type { BackendRpcEvent } from "./backend/service";
+import type { BackendRpcEvent } from "@pig/backend";
 import type {
   PiRpcCommand,
   PiRpcRawEvent,

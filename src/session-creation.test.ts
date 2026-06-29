@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createInMemoryPiRuntimeBridge } from "./in-memory-pi-runtime-bridge";
 import { createPiRpcRuntimeBridge } from "./pi-rpc-runtime-bridge";
-import { createFakePiRpcTransport } from "./pi-rpc-transport.fakes";
+import { createFakePiRpcTransport } from "@pig/core/testing";
 import { createExecutionCheckoutManager } from "./execution-checkout";
 import {
   createInMemorySessionProjectionStore,

@@ -8,7 +8,9 @@ export default defineConfig({
   clearScreen: false,
   resolve: {
     alias: {
-      "@pig/core": resolve(__dirname, "src/core/index.ts"),
+      "@pig/core/testing": resolve(__dirname, "packages/core/src/testing.ts"),
+      "@pig/core": resolve(__dirname, "packages/core/src/index.ts"),
+      "@pig/backend": resolve(__dirname, "packages/backend/src/index.ts"),
     },
   },
   server: {

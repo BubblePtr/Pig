@@ -4,6 +4,10 @@
   "version": "0.1.0",
   "type": "module",
   "main": "out/main/main.js",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "electron-vite dev",
     "test": "vitest run",

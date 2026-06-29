@@ -1,6 +1,6 @@
 // Test-only PiRpcTransport double — feeds scripted responses and emits raw
 // events so the RPC adapter and backend service can be tested without a real
-// `pi` process. Production transports live in pi-rpc-transport.ts.
+// `pi` process. Exposed via the `@pig/core/testing` subpath.
 
 import type {
   PiRpcCommand,
@@ -8,7 +8,7 @@ import type {
   PiRpcResponse,
   PiRpcTransport,
   PiRpcTransportStartInput,
-} from "@pig/core";
+} from "./pi-rpc";
 
 export type FakePiRpcTransportOptions = {
   sessionId?: string;
