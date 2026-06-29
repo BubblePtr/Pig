@@ -17,9 +17,11 @@
     "jsx": "react-jsx",
     "baseUrl": ".",
     "paths": {
-      "@pig/core": ["src/core/index.ts"]
+      "@pig/core": ["packages/core/src/index.ts"],
+      "@pig/core/testing": ["packages/core/src/testing.ts"],
+      "@pig/backend": ["packages/backend/src/index.ts"]
     }
   },
-  "include": ["src", "electron", "electron.vite.config.ts"],
+  "include": ["apps", "packages"],
   "references": []
 }

@@ -3,12 +3,16 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "main": "out/main/main.js",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "electron-vite dev",
+    "dev": "bun --filter @pig/desktop dev",
     "test": "vitest run",
-    "build": "tsc && electron-vite build",
-    "preview": "electron-vite preview"
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit && bun --filter @pig/desktop build",
+    "preview": "bun --filter @pig/desktop preview"
   },
   "dependencies": {
     "@floating-ui/dom": "^1.7.0",
