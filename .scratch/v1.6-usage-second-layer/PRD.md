@@ -4,6 +4,8 @@ Status: ready-for-agent
 Feature: v1.6-usage-second-layer
 Created: 2026-06-24
 
+> 🗄️ 历史归档（更新于 2026-06-29）：本 PRD 写于 Tauri 外壳时期，记录的是**当时**的决策。外壳此后迁至 Electron（见 [ADR-0013](../../docs/adr/0013-electron-shell-and-relocatable-backend.md)）：原"Tauri 命令 `list_sessions()`"现为统一 RPC 协议方法，契约形状不变。当前架构真相以 [CONTEXT.md](../../CONTEXT.md) 与 `docs/adr/` 为准。
+
 > 定位：V1.5 的「用量」页已经能看**跨会话的成本趋势（按项目）+ token 热力图**。V1.6 在同一页加上**第二层拆分**——把花费**按模型**拆开、看**模型分布**、看**工具调用**与 **skill 使用**的频次。仍然是同一份会话数据的"再切一刀"，不引入新数据源、不引入 LLM。
 
 ---

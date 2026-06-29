@@ -4,6 +4,8 @@ Status: ready-for-agent
 Feature: v1-session-replay
 Created: 2026-06-20
 
+> 🗄️ 历史归档（更新于 2026-06-29）：本 PRD 写于 Tauri 外壳、被动飞行记录仪时期，记录的是**当时**的决策。外壳此后迁至 Electron（见 [ADR-0013](../../docs/adr/0013-electron-shell-and-relocatable-backend.md)），产品已演进为 Agent Workspace Control Plane（见 [ADR-0001](../../docs/adr/0001-agent-workspace-control-plane.md)）。当前架构真相以 [CONTEXT.md](../../CONTEXT.md) 与 `docs/adr/` 为准；下文 Tauri/Rust/被动观察者等描述按历史阅读。
+
 > 定位：Pig 是 Pi Agent 的**被动飞行记录仪**。它不启动 Pi、不接管交互，只读取 `~/.pi/agent` 下的会话日志，把单次会话**复盘**成一条看得懂的时间线 + 一份成本/token 真相。让 Pi 在命令行之外不再是黑盒。
 
 ---

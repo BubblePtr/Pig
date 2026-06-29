@@ -12,16 +12,17 @@ After a session, Pig lets you answer — in seconds — the three questions the 
 
 ## Status
 
-🪧 **Planning complete — implementation not yet started.**
+🛠️ **Under active development.** The Electron shell, the Pi RPC runtime bridge, and the agent-workspace foundation (sessions, run controls, runtime projections) have landed; usage and config surfaces are in flight.
 
-This repository currently holds the planning scaffold, not application code. The V1 design was settled through a structured interview and decomposed into a PRD and six vertical-slice issues.
+The product began as a passive session-replay tool and has since evolved into an **Agent Workspace Control Plane** for Pi (see [`docs/adr/0001`](docs/adr/0001-agent-workspace-control-plane.md)). The living source of truth is the domain glossary and the ADRs:
 
-- **PRD:** [`.scratch/v1-session-replay/PRD.md`](.scratch/v1-session-replay/PRD.md)
-- **Issues:** [`.scratch/v1-session-replay/issues/`](.scratch/v1-session-replay/issues/) (`01`–`06`, dependency-ordered tracer bullets)
+- **Glossary:** [`CONTEXT.md`](CONTEXT.md)
+- **Decisions:** [`docs/adr/`](docs/adr/) (`0001`–`0013`)
+- **Feature PRDs:** [`.scratch/<feature>/PRD.md`](.scratch/) (point-in-time planning records)
 
-## V1 scope
+## Scope
 
-A single vertical slice: **global recent-session list → single-session detail** (foldable annotated timeline + per-step cost/token badges). Cross-session dashboard, plugin management, and live tailing are deliberately deferred.
+Pig organizes Pi's runtime into a desktop control plane: create and drive **Sessions** under a **Project**, replay each **Session Trace** as a legible timeline with cost and token truth, and view cross-session **usage** and **config**. An embedded browser with DOM annotation is planned (the load-bearing reason for the Electron shell). A full terminal emulator and file tree are deliberately deferred.
 
 ## Planned stack
 

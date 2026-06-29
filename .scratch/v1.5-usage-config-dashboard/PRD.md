@@ -4,6 +4,8 @@ Status: ready-for-agent
 Feature: v1.5-usage-config-dashboard
 Created: 2026-06-24
 
+> 🗄️ 历史归档（更新于 2026-06-29）：本 PRD 写于 Tauri 外壳时期，记录的是**当时**的决策。外壳此后迁至 Electron（见 [ADR-0013](../../docs/adr/0013-electron-shell-and-relocatable-backend.md)）：后端从 Rust 改为 Node（utilityProcess），原"Tauri 命令"现为统一 RPC 协议方法，fixture 现位于仓库根 `fixtures/pi-agent`。当前架构真相以 [CONTEXT.md](../../CONTEXT.md) 与 `docs/adr/` 为准；下文 Tauri/Rust 分工描述按历史阅读。
+
 > 定位：V1 让我**看清单次会话**（这步花了多少、它在想什么）。V1.5 把 Pig 从"单会话浏览器"升级成一个**左右分栏的 SaaS 形态应用**，新增两个俯瞰视角——**用量**（跨会话的成本/用量趋势，回答"我怎么在用 Pi、钱往哪走"）和**配置**（我的 Pi 装成什么样了）。原 PRD 里 V1.5 的「成本瀑布图 + 上下文增长曲线」经复盘**作废**（见 Further Notes）。
 
 ---
@@ -96,7 +98,7 @@ Created: 2026-06-24
 
 - **什么是好测试**：断言纯核心的**外部行为**——给定输入（fixture 目录 / `SessionSummary[]`），断言输出结构（聚合后的每日成本/项目分组、每日 token、解析出的配置清单）。不测内部步骤、不测私有助手、不跨 IPC 边界测。
 - **首选最高接缝（沿用 V1 习惯）**：
-  - 后端新接缝 `build_config_inventory(dir) -> ConfigInventory`——纯函数，对一个 fixture `.pi/agent` 目录（含 `settings.json` + `skills/` + `extensions/`，以及一个**无 prompt templates** 的情形）断言解析结果。**镜像** V1 `build_index`/`parse_session` 的 fixture 测法。新建一个最小 fixture agent 目录用于配置解析（可复用 `src-tauri/fixtures/pi-agent` 并补 `settings.json` 等）。
+  - 后端新接缝 `build_config_inventory(dir) -> ConfigInventory`——纯函数，对一个 fixture `.pi/agent` 目录（含 `settings.json` + `skills/` + `extensions/`，以及一个**无 prompt templates** 的情形）断言解析结果。**镜像** V1 `build_index`/`parse_session` 的 fixture 测法。新建一个最小 fixture agent 目录用于配置解析（可复用 `fixtures/pi-agent`（迁移前位于 `src-tauri/fixtures/pi-agent`）并补 `settings.json` 等）。
   - 前端用量聚合的**纯函数**（`aggregateDailyCostByProject`、`aggregateDailyTokens`）——给定一组 `SessionSummary` 断言按天/按项目的聚合输出，含**空数组**与**稀疏日期**两个边界。**镜像** `src/session-list.test.tsx` 里 `distinctProjects`/`filterByProject` 的纯函数单测风格。
 - **前端组件轻测**：给定 fixture 聚合数据，断言成本堆叠柱与热力图的关键渲染（如有数据时渲染对应天数的柱/格、空数据时的占位），与 V1 `session-detail.test.tsx` 的轻量组件测一致。配置页轻测：给定 fixture `ConfigInventory` 断言各类目渲染、prompt templates 为空时显示"未安装"。
 - **测试命令**：Rust 用 `cargo test`；前端用 `bun run test`（vitest，**非** `bun test`）。
