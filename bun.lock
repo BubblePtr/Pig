@@ -62,6 +62,29 @@
         "vitest": "^4.1.9",
       },
     },
+    "apps/desktop": {
+      "name": "@pig/desktop",
+      "version": "0.1.0",
+      "dependencies": {
+        "@pig/backend": "workspace:*",
+        "@pig/core": "workspace:*",
+      },
+    },
+    "apps/server": {
+      "name": "@pig/server",
+      "version": "0.1.0",
+      "dependencies": {
+        "@pig/backend": "workspace:*",
+        "@pig/core": "workspace:*",
+      },
+    },
+    "apps/web": {
+      "name": "@pig/web",
+      "version": "0.1.0",
+      "dependencies": {
+        "@pig/core": "workspace:*",
+      },
+    },
     "packages/backend": {
       "name": "@pig/backend",
       "version": "0.1.0",
@@ -348,6 +371,12 @@
     "@pig/backend": ["@pig/backend@workspace:packages/backend"],
 
     "@pig/core": ["@pig/core@workspace:packages/core"],
+
+    "@pig/desktop": ["@pig/desktop@workspace:apps/desktop"],
+
+    "@pig/server": ["@pig/server@workspace:apps/server"],
+
+    "@pig/web": ["@pig/web@workspace:apps/web"],
 
     "@pkgjs/parseargs": ["@pkgjs/parseargs@0.11.0", "", {}, "sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg=="],
 

@@ -32,7 +32,7 @@ describe("HeroUI Pro integration", () => {
 
   it("loads the HeroUI Pro CSS required by the Full Chat surface", () => {
     const source = readFileSync(
-      join(process.cwd(), "src/styles.css"),
+      join(process.cwd(), "apps/desktop/src/styles.css"),
       "utf8",
     );
 
@@ -41,7 +41,7 @@ describe("HeroUI Pro integration", () => {
 
   it("wraps Usage Segment controls in a shared element transition scope", () => {
     const source = readFileSync(
-      join(process.cwd(), "src/usage.tsx"),
+      join(process.cwd(), "apps/desktop/src/usage.tsx"),
       "utf8",
     );
 
@@ -52,8 +52,8 @@ describe("HeroUI Pro integration", () => {
     const files = [
       "vite.config.ts",
       "tsconfig.json",
-      "src/session-detail.tsx",
-      "src/styles.css",
+      "apps/desktop/src/session-detail.tsx",
+      "apps/desktop/src/styles.css",
     ];
 
     for (const file of files) {

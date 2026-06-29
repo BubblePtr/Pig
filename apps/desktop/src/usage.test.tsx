@@ -109,7 +109,7 @@ describe("CostTrendChart", () => {
   });
 
   it("uses HeroUI Pro chart tokens instead of Pig color variables", () => {
-    const source = readFileSync(join(process.cwd(), "src/usage.tsx"), "utf8");
+    const source = readFileSync(join(process.cwd(), "apps/desktop/src/usage.tsx"), "utf8");
 
     expect(source).toContain("const chartColorCount = 5;");
     expect(source).toContain("var(--chart-${(index % chartColorCount) + 1})");
@@ -238,7 +238,7 @@ describe("TokenHeatmap", () => {
 
 describe("UsageSummaryPanel", () => {
   it("labels the route as a first-level Usage surface", () => {
-    const source = readFileSync(join(process.cwd(), "src/usage.tsx"), "utf8");
+    const source = readFileSync(join(process.cwd(), "apps/desktop/src/usage.tsx"), "utf8");
 
     expect(source).toContain(">Usage</div>");
     expect(source).not.toContain("Analyze / Usage");

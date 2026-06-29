@@ -21,6 +21,6 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     pool: "forks",
-    setupFiles: ["./src/test/setup.ts"],
+    setupFiles: ["./apps/desktop/src/test/setup.ts"],
   },
 });

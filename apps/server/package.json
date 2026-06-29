@@ -1,0 +1,13 @@
+{
+  "name": "@pig/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "echo \"@pig/server is the planned headless backend (wraps @pig/backend over a WebSocket transport). Not yet implemented.\""
+  },
+  "dependencies": {
+    "@pig/backend": "workspace:*",
+    "@pig/core": "workspace:*"
+  }
+}

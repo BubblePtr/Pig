@@ -8,7 +8,7 @@ function readProjectFile(path: string) {
 
 describe("Electron shell", () => {
   it("keeps main thin and runs backend work in a utility process", () => {
-    const main = readProjectFile("electron/main.ts");
+    const main = readProjectFile("apps/desktop/electron/main.ts");
 
     expect(main).toContain("utilityProcess.fork");
     expect(main).toContain("MessageChannelMain");
@@ -20,7 +20,7 @@ describe("Electron shell", () => {
   });
 
   it("uses secure BrowserWindow defaults for the renderer", () => {
-    const main = readProjectFile("electron/main.ts");
+    const main = readProjectFile("apps/desktop/electron/main.ts");
 
     expect(main).toContain("contextIsolation: true");
     expect(main).toContain("sandbox: true");
@@ -30,7 +30,7 @@ describe("Electron shell", () => {
   });
 
   it("exposes only a typed Pig API from preload", () => {
-    const preload = readProjectFile("electron/preload.ts");
+    const preload = readProjectFile("apps/desktop/electron/preload.ts");
 
     expect(preload).toContain('contextBridge.exposeInMainWorld("pig"');
     expect(preload).toContain('ipcRenderer.invoke("pig:invoke"');
@@ -40,7 +40,7 @@ describe("Electron shell", () => {
   });
 
   it("hosts the backend service inside the utility process entrypoint", () => {
-    const backend = readProjectFile("electron/backend.ts");
+    const backend = readProjectFile("apps/desktop/electron/backend.ts");
 
     expect(backend).toContain("createBackendService");
     expect(backend).toContain('import type { MessagePortMain } from "electron"');
@@ -51,7 +51,7 @@ describe("Electron shell", () => {
   });
 
   it("rejects renderer invokes after the backend utility process exits", () => {
-    const main = readProjectFile("electron/main.ts");
+    const main = readProjectFile("apps/desktop/electron/main.ts");
 
     expect(main).toContain("backendPort = null");
     expect(main).toContain("backendPort?.close()");

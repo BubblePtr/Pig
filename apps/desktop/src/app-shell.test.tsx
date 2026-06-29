@@ -245,7 +245,7 @@ describe("AppFrame", () => {
 
   it("keeps titlebar controls on the native traffic-light center line", async () => {
     const { container } = renderAppFrame("/");
-    const mainSource = readFileSync(join(process.cwd(), "electron/main.ts"), "utf8");
+    const mainSource = readFileSync(join(process.cwd(), "apps/desktop/electron/main.ts"), "utf8");
 
     expect(await screen.findByText("Main content")).toBeInTheDocument();
 
@@ -331,7 +331,7 @@ describe("AppFrame", () => {
     expect(await screen.findByText("Main content")).toBeInTheDocument();
     const provider = container.querySelector('[data-slot="sidebar-provider"]');
     const sidebar = container.querySelector('[data-slot="sidebar"]');
-    const styles = readFileSync(join(process.cwd(), "src/styles.css"), "utf8");
+    const styles = readFileSync(join(process.cwd(), "apps/desktop/src/styles.css"), "utf8");
     const headerChrome = screen.getByTestId("header-chrome");
     const titleTrack = screen.getByTestId("header-chrome-title-track");
     const title = screen.getByTestId("header-chrome-title");
@@ -481,7 +481,7 @@ describe("AppFrame", () => {
     const provider = container.querySelector('[data-slot="sidebar-provider"]');
     const layout = container.querySelector("[data-app-layout]");
     const headerChrome = screen.getByTestId("header-chrome");
-    const styles = readFileSync(join(process.cwd(), "src/styles.css"), "utf8");
+    const styles = readFileSync(join(process.cwd(), "apps/desktop/src/styles.css"), "utf8");
 
     expect(provider).toHaveAttribute("data-state", "expanded");
     expect(sidebar).toHaveAttribute("data-state", "expanded");
@@ -528,8 +528,8 @@ describe("AppFrame", () => {
     expect(await screen.findByText("Main content")).toBeInTheDocument();
     const sidebar = container.querySelector<HTMLElement>('[data-slot="sidebar"]');
     const sidebarWrapper = container.querySelector<HTMLElement>(".sidebar__offcanvas-wrapper");
-    const styles = readFileSync(join(process.cwd(), "src/styles.css"), "utf8");
-    const source = readFileSync(join(process.cwd(), "src/app-shell.tsx"), "utf8");
+    const styles = readFileSync(join(process.cwd(), "apps/desktop/src/styles.css"), "utf8");
+    const source = readFileSync(join(process.cwd(), "apps/desktop/src/app-shell.tsx"), "utf8");
 
     expect(sidebar).toHaveStyle({ "--sidebar-width": "280px" });
     expect(sidebarWrapper).toBeInTheDocument();
@@ -549,7 +549,7 @@ describe("AppFrame", () => {
 
   it("uses the default resizable separator line", async () => {
     const { container } = renderAppFrame("/");
-    const styles = readFileSync(join(process.cwd(), "src/styles.css"), "utf8");
+    const styles = readFileSync(join(process.cwd(), "apps/desktop/src/styles.css"), "utf8");
 
     expect(await screen.findByText("Main content")).toBeInTheDocument();
     expect(container.querySelector('[data-slot="sidebar-rail"]')).not.toBeInTheDocument();
@@ -588,7 +588,7 @@ describe("AppFrame", () => {
   });
 
   it("disables document-level elastic overscroll", () => {
-    const source = readFileSync(join(process.cwd(), "src/styles.css"), "utf8");
+    const source = readFileSync(join(process.cwd(), "apps/desktop/src/styles.css"), "utf8");
 
     expect(source).toContain("html,");
     expect(source).toContain("body,");
@@ -599,7 +599,7 @@ describe("AppFrame", () => {
   });
 
   it("lets AppLayout own the right content column surface", () => {
-    const source = readFileSync(join(process.cwd(), "src/styles.css"), "utf8");
+    const source = readFileSync(join(process.cwd(), "apps/desktop/src/styles.css"), "utf8");
 
     expect(source).not.toContain(".pig-app-layout [data-slot=\"app-layout-body\"]");
     expect(source).not.toContain(".pig-app-layout > [data-slot=\"app-layout-body\"]");
@@ -612,7 +612,7 @@ describe("AppFrame", () => {
 
   it("does not import standalone React Aria Heading into the app shell", () => {
     const source = readFileSync(
-      join(process.cwd(), "src/app-shell.tsx"),
+      join(process.cwd(), "apps/desktop/src/app-shell.tsx"),
       "utf8",
     );
 
@@ -621,7 +621,7 @@ describe("AppFrame", () => {
   });
 
   it("extends web content into the native macOS titlebar overlay", () => {
-    const mainSource = readFileSync(join(process.cwd(), "electron/main.ts"), "utf8");
+    const mainSource = readFileSync(join(process.cwd(), "apps/desktop/electron/main.ts"), "utf8");
 
     expect(mainSource).toContain('titleBarStyle: "hidden"');
     expect(mainSource).toContain("trafficLightPosition: { x: 16, y: 13 }");
@@ -630,15 +630,15 @@ describe("AppFrame", () => {
   });
 
   it("does not replace macOS titlebar gestures with React window API handlers", () => {
-    const source = readFileSync(join(process.cwd(), "src/app-shell.tsx"), "utf8");
+    const source = readFileSync(join(process.cwd(), "apps/desktop/src/app-shell.tsx"), "utf8");
 
     expect(source).not.toContain("startWindowDrag");
     expect(source).not.toContain("toggleWindowMaximize");
   });
 
   it("marks Electron drag regions with app-region CSS instead of renderer window commands", () => {
-    const styles = readFileSync(join(process.cwd(), "src/styles.css"), "utf8");
-    const source = readFileSync(join(process.cwd(), "src/app-shell.tsx"), "utf8");
+    const styles = readFileSync(join(process.cwd(), "apps/desktop/src/styles.css"), "utf8");
+    const source = readFileSync(join(process.cwd(), "apps/desktop/src/app-shell.tsx"), "utf8");
 
     expect(styles).toContain("-webkit-app-region: drag;");
     expect(styles).toContain("-webkit-app-region: no-drag;");

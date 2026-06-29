@@ -64,7 +64,7 @@ describe("AgentWorkspaceSessionsPage", () => {
     const liveColumn = screen.getByTestId("live-session-column");
     const navbarActions = screen.getByTestId("navbar-actions");
 
-    const source = readFileSync(join(process.cwd(), "src/agent-workspace.tsx"), "utf8");
+    const source = readFileSync(join(process.cwd(), "apps/desktop/src/agent-workspace.tsx"), "utf8");
 
     expect(source).toContain(
       "Project Sessions keep live Pi work separate from Trace and Usage evidence.",
@@ -386,7 +386,7 @@ describe("AgentWorkspaceSessionsPage", () => {
   });
 
   it("creates default Sessions through the runtime bridge factory instead of a fake bridge", () => {
-    const source = readFileSync(join(process.cwd(), "src/agent-workspace.tsx"), "utf8");
+    const source = readFileSync(join(process.cwd(), "apps/desktop/src/agent-workspace.tsx"), "utf8");
 
     expect(source).toContain("createDefaultPiRuntimeBridge");
     expect(source).not.toContain("createInMemoryPiRuntimeBridge");

@@ -7,14 +7,14 @@ const vendoredHeroUIProPath = ["vendor", "herouipro-v3"].join("/");
 
 describe("HeroUI Pro theme integration", () => {
   it("uses the default theme at the document root", () => {
-    const html = readFileSync(join(repoRoot, "index.html"), "utf8");
+    const html = readFileSync(join(repoRoot, "apps/desktop/index.html"), "utf8");
 
     expect(html).not.toContain("data-theme=");
     expect(html).not.toContain("glass-light");
   });
 
   it("uses HeroUI package theme CSS without Pro theme variants or Pig token remapping", () => {
-    const styles = readFileSync(join(repoRoot, "src/styles.css"), "utf8");
+    const styles = readFileSync(join(repoRoot, "apps/desktop/src/styles.css"), "utf8");
 
     expect(styles).toContain('@import "@heroui-pro/react/css";');
     expect(styles).not.toContain('@import "@heroui-pro/react/themes/glass";');
@@ -26,7 +26,7 @@ describe("HeroUI Pro theme integration", () => {
   });
 
   it("does not override default HeroUI shell surfaces", () => {
-    const styles = readFileSync(join(repoRoot, "src/styles.css"), "utf8");
+    const styles = readFileSync(join(repoRoot, "apps/desktop/src/styles.css"), "utf8");
 
     expect(styles).not.toContain(".pig-app-layout [data-slot=\"app-layout-body\"]");
     expect(styles).not.toContain("background-color: var(--surface);");

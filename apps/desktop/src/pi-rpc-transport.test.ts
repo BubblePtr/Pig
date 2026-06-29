@@ -135,7 +135,7 @@ describe("Pi RPC Electron transport", () => {
   });
 
   it("keeps the renderer transport free of Node process imports", () => {
-    const source = readFileSync(join(process.cwd(), "src/pi-rpc-transport.ts"), "utf8");
+    const source = readFileSync(join(process.cwd(), "apps/desktop/src/pi-rpc-transport.ts"), "utf8");
 
     expect(source).not.toContain("node:child_process");
     expect(source).not.toContain("node:stream");

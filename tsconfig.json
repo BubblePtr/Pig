@@ -22,6 +22,6 @@
       "@pig/backend": ["packages/backend/src/index.ts"]
     }
   },
-  "include": ["src", "electron", "packages", "electron.vite.config.ts"],
+  "include": ["apps", "packages"],
   "references": []
 }
