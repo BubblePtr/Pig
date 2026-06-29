@@ -1,10 +1,10 @@
 # Session Projection 使用内部状态集合
 
-Pig 的 Session Projection 使用固定内部状态集合：`creating`、`running`、`waiting`、`failed`、`completed`、`archived`。Session Draft 不属于这个集合，因为 draft 尚未创建 Pig Session、Pi Session State、Agent Run 或 Execution Checkout。
+PiGUI 的 Session Projection 使用固定内部状态集合：`creating`、`running`、`waiting`、`failed`、`completed`、`archived`。Session Draft 不属于这个集合，因为 draft 尚未创建 PiGUI Session、Pi Session State、Agent Run 或 Execution Checkout。
 
 ## Status Semantics
 
-- `creating`: draft 已提交，Pig 正在创建 Projection、准备 checkout、启动/attach Pi Runtime 或发送 initial prompt。
+- `creating`: draft 已提交，PiGUI 正在创建 Projection、准备 checkout、启动/attach Pi Runtime 或发送 initial prompt。
 - `running`: Pi Runtime 正在主动处理当前 turn，或正在执行工具/模型调用。
 - `waiting`: Session 可继续交互，但当前没有 active turn；通常是在等待用户 follow-up、确认或下一步操作。
 - `failed`: 创建或运行失败，需要用户重试、恢复、查看错误或归档。

@@ -1,8 +1,6 @@
-// Pi Runtime Bridge — the contract (port + domain types) the renderer drives
-// Pi through. Two adapters implement it: the RPC-backed bridge
-// (pi-rpc-runtime-bridge.ts, Electron) and the in-memory bridge
-// (in-memory-pi-runtime-bridge.ts, non-Electron fallback + tests). See ADR-0014
-// for the @pigui/core protocol seam these adapters share.
+// Pi Runtime Bridge — the renderer contract for live Pi sessions. Electron uses
+// the Runtime Gateway adapter by default; the in-memory and legacy RPC adapters
+// remain available for browser fallback and driver-level regression tests.
 
 export type {
   PiRpcCommand,

@@ -18,7 +18,7 @@ Local PRD: `.scratch/agent-workspace-control-plane/PRD.md`
 
 ## What to build
 
-建立 Pig 的 Agent Workspace 入口形态：Project 下有 Sessions 工作视图，Live Session View 使用三栏壳，Trace / Usage 的历史复盘能力被明确放入 Analyze 语义下。这个 issue 先使用 fixture/projection 数据，不接 Pi Runtime。
+建立 PiGUI 的 Agent Workspace 入口形态：Project 下有 Sessions 工作视图，Live Session View 使用三栏壳，Trace / Usage 的历史复盘能力被明确放入 Analyze 语义下。这个 issue 先使用 fixture/projection 数据，不接 Pi Runtime。
 
 重点是让后续 issue 有稳定的 UI 和领域词汇落点：左侧 Project / Session list，中间 Live Chat + run timeline，右侧 Structured Action Surface。首版明确不放 terminal emulator 和 file tree。
 
@@ -116,7 +116,7 @@ Local PRD: `.scratch/agent-workspace-control-plane/PRD.md`
 - [ ] 创建流程至少区分 preparing checkout、starting runtime、sending prompt、accepted/failed。
 - [ ] fake bridge 接受 initial prompt 后，draft 被清空，Live Session 出现首条 runtime event。
 - [ ] fake bridge 在任一阶段失败时，draft 内容保留，failure stage 和 error detail 可见。
-- [ ] Pi Session State 被视为 runtime truth；Pig 只保存 Session Projection。
+- [ ] Pi Session State 被视为 runtime truth；PiGUI 只保存 Session Projection。
 - [ ] Projection 可以标记 stale，并在 fake runtime 状态恢复后 resync。
 - [ ] 有 bridge contract tests 和 projection state tests 覆盖成功、失败、恢复。
 
@@ -149,13 +149,13 @@ Local PRD: `.scratch/agent-workspace-control-plane/PRD.md`
 
 ## What to build
 
-把 fakeable Pi Runtime Bridge 接到真实 Pi RPC 前台运行路径。Pig 应通过 Pi RPC 语义发送 initial prompt，消费 Runtime Event Stream，并把消息、工具调用、错误、model/provider、token/cost 增量同步进 Live Session View 和 Session Projection。
+把 fakeable Pi Runtime Bridge 接到真实 Pi RPC 前台运行路径。PiGUI 应通过 Pi RPC 语义发送 initial prompt，消费 Runtime Event Stream，并把消息、工具调用、错误、model/provider、token/cost 增量同步进 Live Session View 和 Session Projection。
 
 测试仍应使用 fake process/transport，不做真实模型或网络调用。真实 Pi 路径只作为本地 smoke/manual verification。
 
 ## Acceptance criteria
 
-- [ ] Pig 可以为单个前台 Session 启动或 attach `pi --mode rpc`。
+- [ ] PiGUI 可以为单个前台 Session 启动或 attach `pi --mode rpc`。
 - [ ] Initial prompt 经 Pi RPC 发送，并能处理 accepted/error 两类返回。
 - [ ] Runtime Event Stream 能更新 Live Chat、run timeline 和 Projection。
 - [ ] model/provider 和 token/cost 摘要能出现在 Structured Action Surface。
@@ -372,14 +372,14 @@ Local PRD: `.scratch/agent-workspace-control-plane/PRD.md`
 
 ## What to build
 
-支持同一 Project 下多个 Session 并发运行，并用 Execution Checkout 隔离后台并发写入。Git repo 中的后台 concurrent Session 默认创建 Pig-managed disposable worktree；前台或显式选择的 Session 可以使用本地 checkout。
+支持同一 Project 下多个 Session 并发运行，并用 Execution Checkout 隔离后台并发写入。Git repo 中的后台 concurrent Session 默认创建 PiGUI-managed disposable worktree；前台或显式选择的 Session 可以使用本地 checkout。
 
 Monorepo 场景中，Project 可以是 repo 子目录：Git / worktree 操作用 repo/worktree root，Pi Runtime `cwd` 使用 Execution Checkout 内的 Project 相对路径。Structured Action Surface 应显示 checkout/root/cwd 信息，让用户知道 Pi 正在哪个目录操作。
 
 ## Acceptance criteria
 
 - [ ] 同一 Project 可以存在多个 active Session。
-- [ ] 后台 concurrent Session 在 Git repo 中默认使用 Pig-managed worktree。
+- [ ] 后台 concurrent Session 在 Git repo 中默认使用 PiGUI-managed worktree。
 - [ ] 前台或显式选择路径可以使用本地 checkout。
 - [ ] Managed worktree 默认 Session-bound、detached/disposable，并在 run 完成后保留供 diff/continue。
 - [ ] Archived Session 或 retention rule 可以把 managed worktree 标记为 cleanup candidate，但不会删除 permanent checkout。

@@ -1,4 +1,4 @@
-# PRD: Pig V1 — Session Replay（会话飞行记录仪）
+# PRD: PiGUI V1 — Session Replay（会话飞行记录仪）
 
 Status: done
 Feature: v1-session-replay
@@ -6,7 +6,7 @@ Created: 2026-06-20
 
 > 🗄️ 历史归档（更新于 2026-06-29）：本 PRD 写于 Tauri 外壳、被动飞行记录仪时期，记录的是**当时**的决策。外壳此后迁至 Electron（见 [ADR-0013](../../docs/adr/0013-electron-shell-and-relocatable-backend.md)），产品已演进为 Agent Workspace Control Plane（见 [ADR-0001](../../docs/adr/0001-agent-workspace-control-plane.md)）。当前架构真相以 [CONTEXT.md](../../CONTEXT.md) 与 `docs/adr/` 为准；下文 Tauri/Rust/被动观察者等描述按历史阅读。
 
-> 定位：Pig 是 Pi Agent 的**被动飞行记录仪**。它不启动 Pi、不接管交互，只读取 `~/.pi/agent` 下的会话日志，把单次会话**复盘**成一条看得懂的时间线 + 一份成本/token 真相。让 Pi 在命令行之外不再是黑盒。
+> 定位：PiGUI 是 Pi Agent 的**被动飞行记录仪**。它不启动 Pi、不接管交互，只读取 `~/.pi/agent` 下的会话日志，把单次会话**复盘**成一条看得懂的时间线 + 一份成本/token 真相。让 Pi 在命令行之外不再是黑盒。
 
 ---
 
@@ -16,7 +16,7 @@ Created: 2026-06-20
 
 ## Solution
 
-一个桌面应用 Pig。我在终端照常用 Pi；跑完一段，切到 Pig，就能：
+一个桌面应用 PiGUI。我在终端照常用 Pi；跑完一段，切到 PiGUI，就能：
 
 1. 在一个**全局最近会话列表**里，一眼认出"刚才那次"——看到它的时间、项目、标题、总花费和主模型。
 2. 点进去，进入**会话详情**：顶部一个汇总头（总花费/总 token/主模型/回合数/时长），下面一条**标注式折叠时间线**——把终端藏起来的东西全摊开：完整 thinking（默认半展开）、完整工具 I/O（默认折叠、可下钻）、以及**每一步的成本/token 徽章**。
@@ -25,9 +25,9 @@ Created: 2026-06-20
 
 ## User Stories
 
-1. As a Pi user, I want Pig to read my existing `~/.pi/agent` session logs without me configuring anything, so that I can start replaying sessions immediately.
-2. As a Pi user, I want Pig to keep running independently of Pi, so that opening Pig never touches or risks my live `pi` process.
-3. As a Pi user, I want to open Pig and immediately see my most recent sessions across all projects sorted newest-first, so that "the one I just ran" is always at the top.
+1. As a Pi user, I want PiGUI to read my existing `~/.pi/agent` session logs without me configuring anything, so that I can start replaying sessions immediately.
+2. As a Pi user, I want PiGUI to keep running independently of Pi, so that opening PiGUI never touches or risks my live `pi` process.
+3. As a Pi user, I want to open PiGUI and immediately see my most recent sessions across all projects sorted newest-first, so that "the one I just ran" is always at the top.
 4. As a Pi user, I want each session row to show a relative time and project name, so that I can place the session in time and context at a glance.
 5. As a Pi user, I want each session row to show a meaningful title, so that I can recognize what the session was about.
 6. As a Pi user, when a session starts with a slash command, I want the title rendered as a typed chip (e.g. `⚡ grilling`) with the arguments as subtitle, so that command sessions are instantly recognizable instead of opaque.
@@ -48,15 +48,15 @@ Created: 2026-06-20
 21. As a Pi user, I want images embedded in a session rendered inline as thumbnails, so that multimodal turns are legible.
 22. As a Pi user, when a session switches models mid-way, I want cost aggregated correctly per model segment, so that the totals are accurate.
 23. As a Pi user, I want very long timelines to scroll smoothly via virtualization, so that an 8MB session doesn't freeze the UI.
-24. As a Pi user, when I switch back to Pig after running a session in the terminal, I want the list to refresh automatically on window focus, so that my new session appears with zero clicks.
+24. As a Pi user, when I switch back to PiGUI after running a session in the terminal, I want the list to refresh automatically on window focus, so that my new session appears with zero clicks.
 25. As a Pi user, I want a manual refresh button as a fallback, so that I can force a rescan whenever I want.
 26. As a Pi user, I want the session list to load fast even with many sessions, so that the app feels instant — backed by an mtime-invalidated index cache.
-27. As a Pi user, I want Pig to read `PI_CODING_AGENT_DIR` (falling back to `~/.pi/agent`), so that a non-default Pi config directory still works.
+27. As a Pi user, I want PiGUI to read `PI_CODING_AGENT_DIR` (falling back to `~/.pi/agent`), so that a non-default Pi config directory still works.
 
 ## Implementation Decisions
 
 ### Architecture
-- **Passive observer.** Pig never launches or hosts Pi. It only reads files under the Pi agent directory. Fully decoupled from Pi's process lifecycle and RPC protocol. (Q1)
+- **Passive observer.** PiGUI never launches or hosts Pi. It only reads files under the Pi agent directory. Fully decoupled from Pi's process lifecycle and RPC protocol. (Q1)
 - **Post-hoc first, incremental-ready.** V1 is a retrospective browser. The parser is written as a "feed one line → emit one state update" incremental state machine, so post-hoc = feed all lines, and future live mode = feed-while-watching. No live `fs.watch` in V1. (Q2)
 - **Tauri shell.** Rust backend does parsing/scanning/aggregation; web frontend does rendering. Responsibilities orthogonal. (Q3)
 - **Frontend:** Vite + React + TypeScript SPA (no Next.js). TanStack Query/Table/Virtual/Router (headless). Styling in three layers: CSS-variable **design tokens (single source of truth)** → Tailwind v4 consumes tokens → own component primitives. Markup never hardcodes hex. (Q12)
@@ -77,7 +77,7 @@ Created: 2026-06-20
 - Agent dir resolved as `PI_CODING_AGENT_DIR` env var, falling back to `~/.pi/agent`. This is the **only** deliberate investment toward future distribution; everything else is built as a self-tool. (Q13)
 
 ### Cost semantics
-- Cost is taken verbatim from the `cost` object already computed and stored on each assistant message's `usage`. Pig does not maintain its own pricing table. Displayed and labeled as **"API list price" (nominal)** — not reconciled against real billing. (Q9)
+- Cost is taken verbatim from the `cost` object already computed and stored on each assistant message's `usage`. PiGUI does not maintain its own pricing table. Displayed and labeled as **"API list price" (nominal)** — not reconciled against real billing. (Q9)
 
 ### Freshness
 - List refreshes via **rescan-on-window-focus** + a manual refresh button. The mtime index makes rescan near-free. No directory watcher in V1. (Q11)
@@ -106,7 +106,7 @@ Created: 2026-06-20
 
 ## Further Notes
 
-- **V1 definition of done:** after a real session, open Pig and answer within 10 seconds — *how much did this cost, which step was expensive, what was Pi thinking* — all three invisible in the terminal.
+- **V1 definition of done:** after a real session, open PiGUI and answer within 10 seconds — *how much did this cost, which step was expensive, what was Pi thinking* — all three invisible in the terminal.
 - **Build-in-public stance:** "public" means the *process* is public, not that V1 must be installable by others. Ship a self-tool that's genuinely good daily-use; distributability is a downstream result, not a starting posture. (Echoes the Voily lesson: don't let peripheral engineering starve the MVP core.)
 - **Data quality is a gift:** every assistant message already carries `usage` with a fully-computed `cost` breakdown, and events form a `parentId` chain (linear in normal use). This is why no pricing table is needed and why the timeline metaphor (not a tree) fits the data's true shape. (Q5)
 - **Derived defaults (not separately decided):** huge tool results / images fold by default with lazy render; multi-model sessions segment cost by `model_change`; long timelines use TanStack Virtual.

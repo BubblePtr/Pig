@@ -1,6 +1,6 @@
 # HeroUI Pro 集成说明
 
-Pig 通过 HeroUI Pro CLI 登录和安装 React 组件包，不再把 HeroUI Pro 源码作为
+PiGUI 通过 HeroUI Pro CLI 登录和安装 React 组件包，不再把 HeroUI Pro 源码作为
 `vendor/` 子模块提交到仓库。运行时代码只依赖 `@heroui-pro/react` 包，组件文档和最新
 API 以 HeroUI Pro Dashboard、Docs 和 MCP 为准。
 
@@ -12,7 +12,7 @@ API 以 HeroUI Pro Dashboard、Docs 和 MCP 为准。
 bunx heroui-pro@latest login
 ```
 
-Pig 使用 Bun 作为包管理器。安装 React 产品包时必须显式传入 `react`，不要运行无参
+PiGUI 使用 Bun 作为包管理器。安装 React 产品包时必须显式传入 `react`，不要运行无参
 `install`，以免交互默认选择其他产品：
 
 ```bash
@@ -50,7 +50,7 @@ bun pm untrusted
 @source "./**/*.{ts,tsx}";
 ```
 
-Pig 不再声明项目级颜色 token，也不再用 `@theme inline` 把 Tailwind utility 映射到
+PiGUI 不再声明项目级颜色 token，也不再用 `@theme inline` 把 Tailwind utility 映射到
 项目前缀变量。颜色、阴影、圆角、图表色都优先使用 HeroUI / HeroUI Pro 官方变量，例如：
 
 ```css
@@ -103,5 +103,5 @@ UI/CSS 验证：
 
 ```bash
 bun run dev
-npx --yes playwright screenshot --viewport-size=1440,1000 http://127.0.0.1:1420/ /tmp/pig-heroui-pro.png
+npx --yes playwright screenshot --viewport-size=1440,1000 http://127.0.0.1:1420/ /tmp/pigui-heroui-pro.png
 ```

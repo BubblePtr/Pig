@@ -5,11 +5,11 @@ Blocked by: 02, 03
 
 ## Parent
 
-[PRD: Pig V1 — Session Replay](../PRD.md)
+[PRD: PiGUI V1 — Session Replay](../PRD.md)
 
 ## What to build
 
-Turn the raw, fully-expanded timeline from slice 02 into the disciplined, foldable transparency surface that is Pig's core value: every hidden detail is *reachable*, not *in your face*.
+Turn the raw, fully-expanded timeline from slice 02 into the disciplined, foldable transparency surface that is PiGUI's core value: every hidden detail is *reachable*, not *in your face*.
 
 - **Turns collapse to a one-line summary by default** (what the step did + its cost/token badge from slice 03), expandable on demand
 - **Thinking blocks are half-expanded by default** (first lines + "expand all") — the core of the black box, surfaced without an extra click

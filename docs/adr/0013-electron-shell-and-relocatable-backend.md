@@ -1,6 +1,6 @@
-# Pig 跨端外壳从 Tauri 改为 Electron，后端做成可重定位服务
+# PiGUI 跨端外壳从 Tauri 改为 Electron，后端做成可重定位服务
 
-Pig 把桌面外壳从 Tauri 2 切换到 Electron。承重理由只有一个：Pig 确定要内嵌浏览器以支持页面预览和 DOM 元素标注（annotation），这是 Agent GUI 的事实标配（Codex、Claude Desktop、Cursor 均有），而 Tauri 2 的多 webview 仍是实验特性、内容注入受限；Electron 的 `WebContentsView` + `executeJavaScript` + CDP 对"嵌任意页面 + 注入标注层 + 检视 DOM"是碾压级能力。生态一致（多数 Agent GUI 用 Electron，参考代码丰富）是次要加分项。此前的 Tauri 选型只活在团队记忆里、从未进 ADR，本决策正式将其反转并记录。
+PiGUI 把桌面外壳从 Tauri 2 切换到 Electron。承重理由只有一个：PiGUI 确定要内嵌浏览器以支持页面预览和 DOM 元素标注（annotation），这是 Agent GUI 的事实标配（Codex、Claude Desktop、Cursor 均有），而 Tauri 2 的多 webview 仍是实验特性、内容注入受限；Electron 的 `WebContentsView` + `executeJavaScript` + CDP 对"嵌任意页面 + 注入标注层 + 检视 DOM"是碾压级能力。生态一致（多数 Agent GUI 用 Electron，参考代码丰富）是次要加分项。此前的 Tauri 选型只活在团队记忆里、从未进 ADR，本决策正式将其反转并记录。
 
 借此一步迁移，后端定型为一个**传输无关、可重定位的服务**：
 
@@ -18,6 +18,6 @@ Pig 把桌面外壳从 Tauri 2 切换到 Electron。承重理由只有一个：P
 
 - **时机**：趁前端对外壳的耦合处于历史最低点（仅 6 个 invoke 命令、UI 经 `invoke()` 与 `PiRpcTransport` 完全解耦）先迁移，再做其他功能。每多写一个 Tauri 专有原语，账单就涨。
 - **只留缝、不建远程**：本次只做到"后端是可重定位的本地服务（utilityProcess + 传输无关协议）"。WebSocket/远程/鉴权/TLS/多客户端会话归属一律推后。
-- **远期开放项（不进 V1 预算）**：把后端搬到 VPS 当瘦客户端是另一个产品形态——Pig 的承重数据（`~/.pi/agent` 日志、Execution Checkout 的 Git worktree、Pi 进程）都在用户本机，真要远程需把整套文件/checkout 语义搬到服务端，并支付跨网络信任边界的固定税（auth/TLS/重连）。"后端可重定位"这个抽象能力 ≠ "VPS 部署"这个产品。
+- **远期开放项（不进 V1 预算）**：把后端搬到 VPS 当瘦客户端是另一个产品形态——PiGUI 的承重数据（`~/.pi/agent` 日志、Execution Checkout 的 Git worktree、Pi 进程）都在用户本机，真要远程需把整套文件/checkout 语义搬到服务端，并支付跨网络信任边界的固定税（auth/TLS/重连）。"后端可重定位"这个抽象能力 ≠ "VPS 部署"这个产品。
 - **嵌入浏览器的安全面**：外壳从第一天立安全默认（`contextIsolation: true` + `sandbox` + preload 暴露 typed invoke + renderer 不开 nodeIntegration）；后端在 utilityProcess，被嵌入的网页内容永远碰不到它。"向敌意页面注入标注脚本 vs 沙箱"的张力留到该功能开发时单独决策。
 - **工具链**：electron-vite（main/preload/renderer 三段拆分），沿用现有 Vite + React；Bun 继续作包管理器，Electron 主进程仍运行 Node。

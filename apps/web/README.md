@@ -1,6 +1,6 @@
 # @pigui/web (planned)
 
-Thin browser client for Pig. Renders the same FSD UI as `@pigui/desktop`, but
+Thin browser client for PiGUI. Renders the same FSD UI as `@pigui/desktop`, but
 connects to a remote `@pigui/server` over the WebSocket transport instead of a
 local backend — a browser cannot spawn `pi` or read `~/.pi/agent`.
 

@@ -1,13 +1,19 @@
 import type {
   ExecutionCheckoutGitClient,
   PiRpcCommand,
-  PiRpcRawEvent,
   PiRpcTransport,
   PiRpcTransportStartInput,
+  RuntimeGatewayEventEnvelope,
 } from "@pigui/core";
 import { buildConfigInventory } from "./config";
 import { createNodeExecutionCheckoutGitClient } from "./execution-checkout";
 import { createNodePiRpcProcess } from "./pi-rpc";
+import { createPiRpcProcessDriver } from "./pi-rpc-driver";
+import {
+  createRuntimeGatewayService,
+  type PiRuntimeDriver,
+  type RuntimeGatewayService,
+} from "./runtime-gateway";
 import {
   buildSessionIndexWithCache,
   createSessionIndexCache,
@@ -30,7 +36,7 @@ export type BackendRpcResponse = {
 
 export type BackendRpcEvent = {
   type: "event";
-  event: PiRpcRawEvent;
+  event: RuntimeGatewayEventEnvelope;
 };
 
 export type BackendService = {
@@ -43,6 +49,7 @@ export type BackendServiceOptions = {
   sessionCache?: SessionIndexCache;
   gitClient?: ExecutionCheckoutGitClient;
   piRpc?: PiRpcTransport;
+  runtimeDriver?: PiRuntimeDriver;
 };
 
 export function createBackendService(options: BackendServiceOptions = {}): BackendService {
@@ -50,13 +57,14 @@ export function createBackendService(options: BackendServiceOptions = {}): Backe
   const sessionCache = options.sessionCache ?? createSessionIndexCache();
   const gitClient = options.gitClient ?? createNodeExecutionCheckoutGitClient();
   const piRpc = options.piRpc ?? createNodePiRpcProcess();
+  const runtimeGateway = createRuntimeGatewayService({
+    driver: options.runtimeDriver ?? createPiRpcProcessDriver({ transport: piRpc }),
+  });
   const listeners = new Set<(event: BackendRpcEvent) => void>();
 
-  piRpc.onEvent((event) => {
-    const rpcEvent: BackendRpcEvent = { type: "event", event };
-
+  runtimeGateway.onEvent((event) => {
     for (const listener of listeners) {
-      listener(rpcEvent);
+      listener(event);
     }
   });
 
@@ -71,6 +79,7 @@ export function createBackendService(options: BackendServiceOptions = {}): Backe
             sessionCache,
             gitClient,
             piRpc,
+            runtimeGateway,
           }),
         };
       } catch (error) {
@@ -97,8 +106,19 @@ async function dispatchRequest(input: {
   sessionCache: SessionIndexCache;
   gitClient: ExecutionCheckoutGitClient;
   piRpc: PiRpcTransport;
+  runtimeGateway: RuntimeGatewayService;
 }) {
   const params = paramsRecord(input.request.params);
+
+  if (isRuntimeGatewayMethod(input.request.method)) {
+    const response = await input.runtimeGateway.handleRequest(input.request);
+
+    if (response.error) {
+      throw new Error(response.error);
+    }
+
+    return response.result;
+  }
 
   switch (input.request.method) {
     case "list_sessions":
@@ -127,6 +147,18 @@ async function dispatchRequest(input: {
     default:
       throw new Error(`Unknown backend RPC method "${input.request.method}".`);
   }
+}
+
+function isRuntimeGatewayMethod(method: string) {
+  return (
+    method === "create_session" ||
+    method === "send_prompt" ||
+    method === "queue_follow_up" ||
+    method === "withdraw_queued_message" ||
+    method === "steer_run" ||
+    method === "stop_run" ||
+    method === "get_runtime_snapshot"
+  );
 }
 
 function paramsRecord(params: unknown) {

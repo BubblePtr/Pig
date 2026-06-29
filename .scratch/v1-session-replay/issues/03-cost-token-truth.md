@@ -5,11 +5,11 @@ Blocked by: 02
 
 ## Parent
 
-[PRD: Pig V1 — Session Replay](../PRD.md)
+[PRD: PiGUI V1 — Session Replay](../PRD.md)
 
 ## What to build
 
-Surface the cost and token reality through both views. The Rust core aggregates per-step `usage`/`cost` (taken verbatim from each assistant message — Pig keeps no pricing table of its own) into per-step figures and per-session totals, correctly **segmenting across `model_change`** so multi-model sessions total accurately.
+Surface the cost and token reality through both views. The Rust core aggregates per-step `usage`/`cost` (taken verbatim from each assistant message — PiGUI keeps no pricing table of its own) into per-step figures and per-session totals, correctly **segmenting across `model_change`** so multi-model sessions total accurately.
 
 - **List:** each row gains `total cost ($)` as the most prominent field, plus `total tokens` and `primary model`.
 - **Detail:** a summary header appears (total cost, total tokens, primary model, turn count, duration), and each step carries a cost/token badge.

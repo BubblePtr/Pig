@@ -101,8 +101,17 @@ function createBackendBridge() {
     mainWindow?.webContents.send("pig:backend-event", {
       type: "event",
       event: {
+        id: "backend-exit",
+        seq: 0,
+        sessionId: "__backend__",
+        piSessionId: "__backend__",
         type: "error",
-        error: error.message,
+        ts: new Date().toISOString(),
+        payload: {
+          kind: "error",
+          title: "Backend exited",
+          body: error.message,
+        },
       },
     } satisfies BackendRpcEvent);
   });

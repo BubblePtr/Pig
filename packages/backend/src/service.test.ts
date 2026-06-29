@@ -48,7 +48,7 @@ describe("backend RPC service", () => {
     });
   });
 
-  it("routes Pi RPC commands and forwards events through the same service", async () => {
+  it("routes Runtime Gateway commands and forwards Gateway events through the same service", async () => {
     const piRpc = createFakePiRpcTransport();
     const service = createBackendService({
       agentDir: fixtureAgentDir(),
@@ -62,46 +62,78 @@ describe("backend RPC service", () => {
 
     await expect(
       service.handleRequest({
-        id: "req-start",
-        method: "start_pi_rpc_runtime",
+        id: "req-create",
+        method: "create_session",
         params: {
-          input: {
-            command: "pi",
-            args: ["--mode", "rpc", "--session-id", "session-1"],
-            cwd: process.cwd(),
-          },
+          sessionId: "session-1",
+          projectId: "project-1",
+          cwd: process.cwd(),
         },
       }),
-    ).resolves.toEqual({ id: "req-start", result: null });
+    ).resolves.toEqual({
+      id: "req-create",
+      result: expect.objectContaining({
+        sessionId: "session-1",
+        piSessionId: "pi-session-rpc",
+      }),
+    });
     await expect(
       service.handleRequest({
         id: "req-send",
-        method: "send_pi_rpc_command",
+        method: "send_prompt",
         params: {
-          command: {
-            id: "command-1",
-            type: "get_state",
-          },
+          piSessionId: "pi-session-rpc",
+          prompt: "Hello Pi",
         },
       }),
     ).resolves.toEqual({
       id: "req-send",
       result: expect.objectContaining({
-        id: "command-1",
-        command: "get_state",
-        success: true,
+        seq: 1,
+        sessionId: "session-1",
+        piSessionId: "pi-session-rpc",
+        type: "message_update",
+        payload: expect.objectContaining({
+          role: "user",
+          body: "Hello Pi",
+        }),
       }),
     });
 
-    piRpc.emitEvent({ type: "message_end", message: { role: "assistant" } });
+    piRpc.emitEvent({
+      type: "message_end",
+      message: {
+        role: "assistant",
+        content: [{ type: "text", text: "Hi from Pi" }],
+      },
+    });
 
     expect(events).toEqual([
       {
         type: "event",
-        event: {
-          type: "message_end",
-          message: { role: "assistant" },
-        },
+        event: expect.objectContaining({
+          seq: 1,
+          sessionId: "session-1",
+          piSessionId: "pi-session-rpc",
+          type: "message_update",
+          payload: expect.objectContaining({
+            role: "user",
+            body: "Hello Pi",
+          }),
+        }),
+      },
+      {
+        type: "event",
+        event: expect.objectContaining({
+          seq: 2,
+          sessionId: "session-1",
+          piSessionId: "pi-session-rpc",
+          type: "message_update",
+          payload: expect.objectContaining({
+            role: "assistant",
+            body: "Hi from Pi",
+          }),
+        }),
       },
     ]);
   });

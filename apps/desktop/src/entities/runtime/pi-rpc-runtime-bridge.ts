@@ -1,6 +1,6 @@
-// RPC-backed Pi Runtime Bridge adapter — drives a real `pi --mode rpc` process
-// through a PiRpcTransport. The composition root (pi-runtime-factory.ts) selects
-// this adapter when running in Electron.
+// Legacy RPC-backed Pi Runtime Bridge adapter. The Electron default now uses
+// Runtime Gateway; this adapter remains for injected transport tests and RPC
+// driver compatibility checks.
 
 import type { PiRpcRawEvent, PiRpcResponse, PiRpcTransport } from "@pigui/core";
 import {
