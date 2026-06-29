@@ -1,8 +1,15 @@
 import { readdir, readFile, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, extname, join } from "node:path";
-import type { SessionDetail, SessionContentPart, SessionTurn } from "../session-detail";
-import type { ModelUsage, NamedCount, SessionSummary, Title } from "../sessions";
+import type {
+  SessionDetail,
+  SessionContentPart,
+  SessionTurn,
+  ModelUsage,
+  NamedCount,
+  SessionSummary,
+  Title,
+} from "@pig/core";
 
 const maxTextTitleChars = 96;
 const maxCommandArgsChars = 80;

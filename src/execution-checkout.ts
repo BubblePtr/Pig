@@ -1,4 +1,7 @@
 import type { ExecutionCheckout } from "./pi-runtime-bridge";
+import type { ExecutionCheckoutGitClient } from "@pig/core";
+
+export type { ExecutionCheckoutGitClient } from "@pig/core";
 
 export type ProjectExecutionTarget = {
   id: string;
@@ -13,15 +16,6 @@ export type PrepareExecutionCheckoutInput = {
   strategy: ExecutionCheckoutStrategy;
   project: ProjectExecutionTarget;
   now?: () => string;
-};
-
-export type ExecutionCheckoutGitClient = {
-  isGitRepository(repoRoot: string): Promise<boolean>;
-  addDetachedWorktree(input: {
-    repoRoot: string;
-    checkoutRoot: string;
-    sessionId: string;
-  }): Promise<void>;
 };
 
 export type ExecutionCheckoutManager = {

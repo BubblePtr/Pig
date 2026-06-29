@@ -1,3 +1,19 @@
+import type {
+  PiRpcCommand,
+  PiRpcResponse,
+  PiRpcRawEvent,
+  PiRpcTransportStartInput,
+  PiRpcTransport,
+} from "@pig/core";
+
+export type {
+  PiRpcCommand,
+  PiRpcResponse,
+  PiRpcRawEvent,
+  PiRpcTransportStartInput,
+  PiRpcTransport,
+} from "@pig/core";
+
 export type ExecutionCheckout = {
   mode: "foreground-local" | "managed-worktree";
   root: string;
@@ -177,39 +193,6 @@ function cloneSessionState(state: PiSessionState): PiSessionState {
     summary: state.summary ? { ...state.summary } : undefined,
   };
 }
-
-export type PiRpcCommand = {
-  id?: string;
-  type: string;
-  [key: string]: unknown;
-};
-
-export type PiRpcResponse = {
-  id?: string;
-  type: "response";
-  command: string;
-  success: boolean;
-  data?: unknown;
-  error?: string;
-};
-
-export type PiRpcRawEvent = {
-  type: string;
-  [key: string]: unknown;
-};
-
-export type PiRpcTransportStartInput = {
-  command: "pi";
-  args: string[];
-  cwd: string;
-};
-
-export type PiRpcTransport = {
-  start(input: PiRpcTransportStartInput): Promise<void>;
-  send(command: PiRpcCommand): Promise<PiRpcResponse>;
-  onEvent(listener: (event: PiRpcRawEvent) => void): () => void;
-  stop?(): Promise<void>;
-};
 
 export type FakePiRpcTransportOptions = {
   sessionId?: string;

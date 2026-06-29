@@ -1,5 +1,10 @@
-import type { ExecutionCheckoutGitClient } from "../execution-checkout";
-import type { PiRpcCommand, PiRpcRawEvent, PiRpcTransport, PiRpcTransportStartInput } from "../pi-runtime-bridge";
+import type {
+  ExecutionCheckoutGitClient,
+  PiRpcCommand,
+  PiRpcRawEvent,
+  PiRpcTransport,
+  PiRpcTransportStartInput,
+} from "@pig/core";
 import { buildConfigInventory } from "./config";
 import { createNodeExecutionCheckoutGitClient } from "./execution-checkout";
 import { createNodePiRpcProcess } from "./pi-rpc";
