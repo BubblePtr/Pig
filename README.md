@@ -1,8 +1,8 @@
 # Pig
 
-> A passive flight recorder for [Pi Agent](https://pi.dev) — making the CLI's runtime no longer a black box.
+> A GUI control plane for [Pi Agent](https://pi.dev) — making the CLI's runtime no longer a black box.
 
-Pig is a desktop companion for the Pi coding agent. It does **not** launch or host Pi, and it is **not** an AI developer environment. You keep using `pi` in your terminal; Pig sits beside it as a pane of glass, reading Pi's session logs and replaying each session as a legible timeline with cost and token truth.
+Pig is a desktop control plane for the Pi coding agent: it creates, starts, observes, and manages Pi agent workspaces, and replays each session as a legible timeline with cost and token truth. Pi remains the only runtime and owns session truth — Pig drives it as an **isolated subprocess** over a transport-agnostic RPC protocol, never embedding the agent in-process. The dashboard must never be able to stall the engine.
 
 After a session, Pig lets you answer — in seconds — the three questions the terminal hides:
 
@@ -25,13 +25,13 @@ A single vertical slice: **global recent-session list → single-session detail*
 
 ## Planned stack
 
-- **Shell:** Tauri (Rust backend does parsing/scanning/aggregation; web frontend does rendering)
+- **Shell:** Electron — a thin `main` process, a Node `utilityProcess` backend (session-log parsing + `pi` subprocess management), and a React renderer (see [`docs/adr/0013`](docs/adr/0013-electron-shell-and-relocatable-backend.md))
 - **Frontend:** Vite + React + TypeScript SPA, TanStack (Query/Table/Virtual/Router)
 - **Styling:** CSS-variable design tokens (single source of truth) → Tailwind v4 → own component primitives
 
 ## Architecture principle
 
-Pig is a **passive observer**, orthogonal to Pi's process and protocol. Every feature is weighed against one question: *does it break the pure-observer purity?* That is why writes (plugin management) and live `fs.watch` are out of V1.
+**The dashboard must never stall the engine.** Pi owns session truth and runs as an isolated subprocess; Pig observes and steers it over a single transport-agnostic RPC protocol. The backend lives in a `utilityProcess` so a runtime crash never freezes the window — and so the same backend can later be relocated behind a remote transport without touching business code.
 
 ---
 

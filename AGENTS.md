@@ -2,7 +2,7 @@
 
 > Canonical agent instructions for this repo, shared across all runtimes (Pi, Claude Code, and any other agent). `CLAUDE.md` imports this file — edit here, not there.
 
-Pig is a passive flight recorder for the Pi coding agent. It reads Pi's session logs and replays each session as a legible timeline with cost and token truth. It does not launch or host Pi. For product scope and decisions, read `README.md` and `.scratch/v1-session-replay/PRD.md`.
+Pig is a GUI control plane for the Pi coding agent. It creates, starts, observes, and manages Pi agent workspaces — and replays each session as a legible timeline with cost and token truth. It drives Pi as an isolated subprocess (Pi owns session truth; Pig observes and steers it over a transport-agnostic RPC protocol). The desktop shell is Electron (`utilityProcess` backend + React renderer; see `docs/adr/0013-electron-shell-and-relocatable-backend.md`). For product scope and decisions, read `README.md` and `.scratch/v1-session-replay/PRD.md`.
 
 ## Agent skills
 
