@@ -6,7 +6,7 @@ import type {
   PiRpcResponse,
   PiRpcTransport,
   PiRpcTransportStartInput,
-} from "../pi-runtime-bridge";
+} from "@pig/core";
 
 export type NodePiRpcProcessOptions = {
   responseTimeoutMs?: number;

@@ -8,31 +8,9 @@ import { AppFrame } from "./app-shell";
 import { useRefreshOnWindowFocus } from "./refresh";
 import { invoke } from "./runtime";
 
-export type ConfigInventory = {
-  defaultModel?: string;
-  defaultProvider?: string;
-  defaultThinkingLevel?: string;
-  theme?: string;
-  packages: string[];
-  extensions: ExtensionInfo[];
-  skills: SkillInfo[];
-  promptTemplates: TemplateInfo[];
-};
+import type { ConfigInventory, ExtensionInfo, SkillInfo, TemplateInfo } from "@pig/core";
 
-export type ExtensionInfo = {
-  name: string;
-  source: string;
-  enabled: boolean;
-};
-
-export type SkillInfo = {
-  name: string;
-  source: string;
-};
-
-export type TemplateInfo = {
-  name: string;
-};
+export type { ConfigInventory, ExtensionInfo, SkillInfo, TemplateInfo } from "@pig/core";
 
 type SetupCategory = "models" | "packages" | "extensions" | "skills" | "templates";
 

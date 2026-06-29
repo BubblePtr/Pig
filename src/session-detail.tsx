@@ -16,54 +16,22 @@ import {
 } from "lucide-react";
 import { lazy, Suspense, useRef, useState } from "react";
 import { invoke } from "./runtime";
+import type {
+  MessageRole,
+  SessionContentPart,
+  TokenUsage,
+  CostBreakdown,
+  SessionTurn,
+  SessionDetail,
+} from "@pig/core";
 
-type MessageRole = "user" | "assistant" | "toolResult" | "unknown";
-
-export type SessionContentPart = {
-  partType: string;
-  text?: string;
-  name?: string;
-  payload: unknown;
-};
-
-export type TokenUsage = {
-  inputTokens: number;
-  outputTokens: number;
-  cacheReadTokens: number;
-  cacheWriteTokens: number;
-  totalTokens: number;
-};
-
-export type CostBreakdown = {
-  inputUsd: number;
-  outputUsd: number;
-  cacheReadUsd: number;
-  cacheWriteUsd: number;
-  totalUsd: number;
-};
-
-export type SessionTurn = {
-  kind: "message" | "annotation";
-  role?: MessageRole;
-  timestamp?: string;
-  title?: string;
-  model?: string;
-  usage?: TokenUsage;
-  cost?: CostBreakdown;
-  parts: SessionContentPart[];
-};
-
-export type SessionDetail = {
-  id: string;
-  timestamp: string;
-  project: string;
-  totalCostUsd: number;
-  totalTokens: number;
-  primaryModel?: string;
-  turnCount: number;
-  durationSeconds?: number;
-  turns: SessionTurn[];
-};
+export type {
+  SessionContentPart,
+  TokenUsage,
+  CostBreakdown,
+  SessionTurn,
+  SessionDetail,
+} from "@pig/core";
 
 const thinkingPreviewLines = 6;
 const thinkingPreviewChars = 1200;

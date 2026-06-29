@@ -35,18 +35,25 @@ const rendererBuild = {
   },
 };
 
+const coreAlias = {
+  "@pig/core": resolve(__dirname, "src/core/index.ts"),
+};
+
 export default defineConfig({
   main: {
     build: mainBuild as any,
+    resolve: { alias: coreAlias },
   },
   preload: {
     build: preloadBuild as any,
+    resolve: { alias: coreAlias },
   },
   renderer: {
     root: ".",
     plugins: [react(), tailwindcss()],
     clearScreen: false,
     build: rendererBuild as any,
+    resolve: { alias: coreAlias },
     server: {
       host: "127.0.0.1",
       port: 1420,

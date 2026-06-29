@@ -1,34 +1,7 @@
 import { invoke } from "./runtime";
+import type { SessionSummary } from "@pig/core";
 
-export type SessionSummary = {
-  id: string;
-  timestamp: string;
-  project: string;
-  title: Title;
-  totalCostUsd: number;
-  totalTokens: number;
-  primaryModel?: string;
-  modelBreakdown: ModelUsage[];
-  toolCounts: NamedCount[];
-  skillCounts: NamedCount[];
-};
-
-export type ModelUsage = {
-  model: string;
-  costUsd: number;
-  tokens: number;
-};
-
-export type NamedCount = {
-  name: string;
-  count: number;
-};
-
-export type Title =
-  | { kind: "command"; name: string; args: string }
-  | { kind: "skill"; name: string }
-  | { kind: "text"; sentence: string }
-  | { kind: "raw"; text: string };
+export type { SessionSummary, ModelUsage, NamedCount, Title } from "@pig/core";
 
 export async function listSessions() {
   return invoke<SessionSummary[]>("list_sessions");
