@@ -1,7 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createDefaultPiRuntimeBridge } from "@/entities/runtime/pi-runtime-factory";
 
 describe("default Pi runtime bridge factory", () => {
+  afterEach(() => {
+    delete window.pig;
+  });
+
   it("uses an in-browser fake bridge outside Electron so dev-server sessions stay interactive", async () => {
     const bridge = createDefaultPiRuntimeBridge({
       now: () => "2026-06-26T08:00:00.000Z",
@@ -30,5 +34,57 @@ describe("default Pi runtime bridge factory", () => {
       status: "pending",
       body: "Queue a browser fallback follow-up.",
     });
+  });
+
+  it("uses the Runtime Gateway bridge in Electron by default", async () => {
+    const invocations: Array<{ command: string; args?: Record<string, unknown> }> = [];
+    const invoke = async <T,>(command: string, args?: Record<string, unknown>) => {
+      invocations.push({ command, args });
+
+      return {
+        sessionId: "session-electron",
+        runtimeId: "pi-rpc:session-electron",
+        piSessionId: "pi-session-electron",
+        projectId: "pig",
+        cwd: "/Users/void/code/opensource/Pig",
+        status: "idle",
+        events: [],
+        updatedAt: "2026-06-29T12:00:00.000Z",
+      } as T;
+    };
+
+    window.pig = {
+      invoke,
+      onBackendEvent: vi.fn(() => vi.fn()),
+      onWindowFocusChanged: vi.fn(() => vi.fn()),
+    };
+
+    const bridge = createDefaultPiRuntimeBridge();
+    const runtime = await bridge.startRuntime({
+      sessionId: "session-electron",
+      projectId: "pig",
+      checkout: {
+        mode: "foreground-local",
+        root: "/Users/void/code/opensource/Pig",
+        runtimeCwd: "/Users/void/code/opensource/Pig",
+      },
+    });
+
+    expect(runtime.runtimeId).toBe("pi-rpc:session-electron");
+    expect(invocations).toEqual([
+      {
+        command: "create_session",
+        args: {
+          sessionId: "session-electron",
+          projectId: "pig",
+          cwd: "/Users/void/code/opensource/Pig",
+          checkout: {
+            mode: "foreground-local",
+            root: "/Users/void/code/opensource/Pig",
+            runtimeCwd: "/Users/void/code/opensource/Pig",
+          },
+        },
+      },
+    ]);
   });
 });

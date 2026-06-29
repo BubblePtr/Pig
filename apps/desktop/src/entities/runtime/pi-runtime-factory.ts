@@ -1,7 +1,7 @@
 import type { PiRpcTransport, PiRuntimeBridge } from "@/entities/runtime/pi-runtime-bridge";
 import { createPiRpcRuntimeBridge } from "@/entities/runtime/pi-rpc-runtime-bridge";
+import { createPiRuntimeGatewayBridge } from "@/entities/runtime/gateway-runtime-bridge";
 import { createInMemoryPiRuntimeBridge } from "@/entities/runtime/in-memory-pi-runtime-bridge";
-import { createElectronPiRpcTransport } from "@/shared/pi-rpc-transport";
 import { isElectronRuntime } from "@/shared/runtime";
 
 export type DefaultPiRuntimeBridgeOptions = {
@@ -18,8 +18,14 @@ export function createDefaultPiRuntimeBridge(
     });
   }
 
+  if (!options.transport) {
+    return createPiRuntimeGatewayBridge({
+      now: options.now,
+    });
+  }
+
   return createPiRpcRuntimeBridge({
-    transport: options.transport ?? createElectronPiRpcTransport(),
+    transport: options.transport,
     now: options.now,
   });
 }

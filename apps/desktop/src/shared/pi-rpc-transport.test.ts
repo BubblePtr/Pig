@@ -64,7 +64,7 @@ describe("Pi RPC Electron transport", () => {
           content: [{ type: "text", text: "Ready." }],
         },
       },
-    });
+    } as unknown as BackendRpcEvent);
     unsubscribe();
     await Promise.resolve();
 

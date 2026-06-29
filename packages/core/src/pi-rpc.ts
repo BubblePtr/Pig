@@ -1,5 +1,5 @@
-// Pi RPC protocol — the transport contract spoken on both ends of the seam:
-// the utilityProcess backend drives `pi`, the renderer transport relays it.
+// Pi RPC protocol — the legacy low-level process contract. Runtime Gateway is
+// the product-facing API; backend drivers may still use these types internally.
 
 export type PiRpcCommand = {
   id?: string;

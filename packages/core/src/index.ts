@@ -31,3 +31,16 @@ export type {
 } from "./pi-rpc";
 
 export type { ExecutionCheckoutGitClient } from "./checkout";
+
+export {
+  createRuntimeGatewaySequencer,
+  type RuntimeGatewayRequest,
+  type RuntimeGatewayResponse,
+  type RuntimeGatewayEventPayload,
+  type RuntimeGatewayEventEnvelope,
+  type RuntimeGatewayEventInput,
+  type RuntimeGatewaySummary,
+  type RuntimeGatewaySnapshot,
+  type RuntimeGatewayQueuedMessage,
+  type RuntimeGatewaySequencerOptions,
+} from "./runtime-gateway";

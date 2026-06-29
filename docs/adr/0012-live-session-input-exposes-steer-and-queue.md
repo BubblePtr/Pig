@@ -1,6 +1,6 @@
 # Live Session 输入区暴露 Steer 和 Queue
 
-Pig 首版的 Live Session 输入区以用户可感知的 `Queue` 为默认运行中动作，并在需要时暴露 `Steer` 作为显式替代，而不是让用户理解 Pi 的所有底层控制命令。
+PiGUI 首版的 Live Session 输入区以用户可感知的 `Queue` 为默认运行中动作，并在需要时暴露 `Steer` 作为显式替代，而不是让用户理解 Pi 的所有底层控制命令。
 
 没有 active run 时，输入框提交的是普通 prompt，用于开始新 turn 或继续当前 Session。有 active run 时，输入框默认提交为 `Queue`：
 

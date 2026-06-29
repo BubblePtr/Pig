@@ -1,6 +1,6 @@
 # 采用 apps/packages 多端 Monorepo
 
-Pig 从单包结构迁移为 bun workspaces 多端 Monorepo。这覆盖 [ADR-0014](0014-shared-kernel-core.md) 的"目录先行、第二消费者再升包"分阶段决策——**保留**其 shared-kernel 概念，**翻转**打包时机：第二、三消费者（web、未来 mobile）现在已是**确定意图**，且 `core`/`backend` 的边界经候选 1、2 验证过，"别给未验证边界浇水泥"的反对意见已消解。
+PiGUI 从单包结构迁移为 bun workspaces 多端 Monorepo。这覆盖 [ADR-0014](0014-shared-kernel-core.md) 的"目录先行、第二消费者再升包"分阶段决策——**保留**其 shared-kernel 概念，**翻转**打包时机：第二、三消费者（web、未来 mobile）现在已是**确定意图**，且 `core`/`backend` 的边界经候选 1、2 验证过，"别给未验证边界浇水泥"的反对意见已消解。
 
 ## 目标结构
 
@@ -10,8 +10,8 @@ apps/
   web/          # 浏览器：同套 web UI，连远程 server（stub，未实现）
   server/       # headless：包 packages/backend + WebSocket transport（stub，未实现）
 packages/
-  core/         # @pig/core 契约（跨进程/跨端 shared kernel）
-  backend/      # @pig/backend 可重定位 server 核心（Electron-free）
+  core/         # @pigui/core 契约（跨进程/跨端 shared kernel）
+  backend/      # @pigui/backend 可重定位 server 核心（Electron-free）
 ```
 
 每个 app 内部用 FSD（`app/pages/entities/shared`）。`mobile`（React Native）记为**未来**消费者：届时把 renderer 的框架无关逻辑抽成共享包，UI 分叉（desktop+web 用 React-DOM，mobile 用 RN）。
@@ -32,7 +32,7 @@ packages/
 
 ## Consequences
 
-- `@pig/core`、`@pig/backend` 成为真 workspace 包（bun symlink），不再是手写路径 alias。
+- `@pigui/core`、`@pigui/backend` 成为真 workspace 包（bun symlink），不再是手写路径 alias。
 - renderer 暂留 `apps/desktop/src/`（FSD）；其第二消费者（web）真开工时再抽 `packages/renderer`。
 - electron-vite 构建根移到 `apps/desktop`；electron 入口收进 `apps/desktop/electron/`。
 - 候选 4（切 agent-workspace 等 mega-module 成 widgets/features）仍推后。

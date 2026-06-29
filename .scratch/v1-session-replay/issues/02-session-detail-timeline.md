@@ -5,7 +5,7 @@ Blocked by: 01
 
 ## Parent
 
-[PRD: Pig V1 — Session Replay](../PRD.md)
+[PRD: PiGUI V1 — Session Replay](../PRD.md)
 
 ## What to build
 

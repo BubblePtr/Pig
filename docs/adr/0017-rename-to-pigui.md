@@ -9,15 +9,15 @@
 ## 改了什么
 
 - **包作用域**：`@pig/*` → `@pigui/*`（`@pigui/{core,backend,desktop,web,server}`）——所有 package.json name + workspace 依赖 + 全部 import + tsconfig/vite/electron-vite 三处 alias。根包名 `pig` → `pigui`。
-- **品牌字串**：README / AGENTS / CONTEXT / CLAUDE 标题与正文中的产品名 "Pig" → "PiGUI"；app 窗口标题、`<title>`、Electron 进程错误信息；以及渲染层少量面向用户的品牌标签（"PiGUI-managed worktree" 等）。
+- **品牌字串**：README / AGENTS / CONTEXT / CLAUDE / docs / `.scratch` 中的产品名 "Pig" → "PiGUI"；app 窗口标题、`<title>`、Electron 进程错误信息；以及渲染层少量面向用户的品牌标签（"PiGUI-managed worktree" 等）。
 - **仓库**：`gh repo rename PiGUI`（GitHub 自动重定向旧 URL；本地 remote 同步更新）。
 
 ## 刻意保留
 
-- **历史 ADR（0001–0016）与 `.scratch/` 已完成的 PRD/issue** 中的 "Pig" / `@pig/`：它们是**点位历史记录**，机械全替会篡改"当时的决策"。本 ADR 即指明此后的真名。
+- **本 ADR 中用于说明更名前后的旧名**：这里必须保留 "Pig" / `@pig/`，否则无法表达更名决策本身。
 - **"Pi"**（Pi coding agent 本身）：与我们无关，永不改。
-- **样例/种子数据**里的项目名 "Pig"（如 sidebar 默认 project）与 `/Users/.../Pig` 本地路径：是数据/路径而非品牌，保留（改动会无谓波及大量测试断言）。
-- 源码注释中描述性的 "Pig" 可按需顺带清理，未纳入本次。
+- **样例/种子数据**里的旧项目名（如 sidebar 默认 project）与 `/Users/.../Pig` 本地路径：是数据/路径而非品牌，保留（改动会无谓波及大量测试断言）。
+- 源码注释中的旧产品名可按需顺带清理，未纳入本次。
 
 ## Consequences
 

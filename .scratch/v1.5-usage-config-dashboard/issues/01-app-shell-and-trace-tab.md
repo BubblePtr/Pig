@@ -10,7 +10,7 @@ PRD: `.scratch/v1.5-usage-config-dashboard/PRD.md`
 
 ## What to build
 
-把 Pig 从"单个全屏页面"重构成一个**左右分栏的应用外壳**，顶层三个 Tab：`Trace` / `用量` / `配置`。这是行走骨架——一次性的结构投资，三 Tab 共同受益。
+把 PiGUI 从"单个全屏页面"重构成一个**左右分栏的应用外壳**，顶层三个 Tab：`Trace` / `用量` / `配置`。这是行走骨架——一次性的结构投资，三 Tab 共同受益。
 
 - 外壳：左侧导航/列表区 + 右侧内容区，顶层 Tab 切换（沿用现有 TanStack Router；新增 `用量`、`配置` 两个顶层路由，并把现有 `/`、`/sessions/$sessionId` 归入 `Trace`）。
 - `Trace` Tab：**复用 V1 既有的会话列表与单会话时间线**（含成本/token 徽章、thinking、工具 I/O、按项目过滤）。仅做塞进左右分栏所需的布局调整，**内容不重做**。

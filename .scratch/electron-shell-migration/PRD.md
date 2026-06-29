@@ -1,17 +1,17 @@
-# PRD: Pig 外壳迁移 — Tauri → Electron（可重定位后端）
+# PRD: PiGUI 外壳迁移 — Tauri → Electron（可重定位后端）
 
 Status: done
 Feature: electron-shell-migration
 Created: 2026-06-29
 ADR: docs/adr/0013-electron-shell-and-relocatable-backend.md
 
-> 定位：把 Pig 的桌面外壳从 Tauri 2 切到 Electron，并借此一步把后端定型为**传输无关、可重定位的服务**（utilityProcess 现在 / 远程 transport 远期）。承重理由是确定要内嵌浏览器做 DOM annotation——Agent GUI 标配，Tauri 2 多 webview 不成熟。这是一次**纯架构迁移**，对终端用户的可见功能应当**零行为变化**。
+> 定位：把 PiGUI 的桌面外壳从 Tauri 2 切到 Electron，并借此一步把后端定型为**传输无关、可重定位的服务**（utilityProcess 现在 / 远程 transport 远期）。承重理由是确定要内嵌浏览器做 DOM annotation——Agent GUI 标配，Tauri 2 多 webview 不成熟。这是一次**纯架构迁移**，对终端用户的可见功能应当**零行为变化**。
 
 ---
 
 ## Problem Statement
 
-我（Pig 的开发者）需要在 Pig 里内嵌一个浏览器，做页面预览和 DOM 元素标注（annotation）——这是 Agent GUI 的事实标配（Codex、Claude Desktop、Cursor 都有）。但当前外壳是 Tauri 2，它的多 webview 仍是实验特性、对"嵌任意页面 + 注入标注层 + 检视 DOM"支持受限，这条确定要做的承重需求在 Tauri 上无法干净落地。继续在 Tauri 上叠加 Issue 7 之后的功能，等于往一个已判死刑的地基上浇水泥：每多写一个 Tauri 专有原语、每多一个 `invoke` 命令，未来迁移的账单就涨一点。而现在恰好是缝隙的历史最低点——前端对外壳仅有 6 个 `invoke` 命令、且已被 `invoke()` 与 `PiRpcTransport` 两个抽象完全解耦。
+我（PiGUI 的开发者）需要在 PiGUI 里内嵌一个浏览器，做页面预览和 DOM 元素标注（annotation）——这是 Agent GUI 的事实标配（Codex、Claude Desktop、Cursor 都有）。但当前外壳是 Tauri 2，它的多 webview 仍是实验特性、对"嵌任意页面 + 注入标注层 + 检视 DOM"支持受限，这条确定要做的承重需求在 Tauri 上无法干净落地。继续在 Tauri 上叠加 Issue 7 之后的功能，等于往一个已判死刑的地基上浇水泥：每多写一个 Tauri 专有原语、每多一个 `invoke` 命令，未来迁移的账单就涨一点。而现在恰好是缝隙的历史最低点——前端对外壳仅有 6 个 `invoke` 命令、且已被 `invoke()` 与 `PiRpcTransport` 两个抽象完全解耦。
 
 ## Solution
 
@@ -26,11 +26,11 @@ ADR: docs/adr/0013-electron-shell-and-relocatable-backend.md
 
 ## User Stories
 
-1. As a Pi user, I want every existing Pig view (session list, session detail, usage, config) to behave and show data identically after the shell migration, so that the switch is invisible to me.
-2. As a Pi user, I want Pig to keep reading my existing `~/.pi/agent` session logs with no reconfiguration, so that nothing about my setup changes.
+1. As a Pi user, I want every existing PiGUI view (session list, session detail, usage, config) to behave and show data identically after the shell migration, so that the switch is invisible to me.
+2. As a Pi user, I want PiGUI to keep reading my existing `~/.pi/agent` session logs with no reconfiguration, so that nothing about my setup changes.
 3. As a Pi user, I want session titles, slash-command chips, skill chips, cost/token badges, and ordering to render exactly as before, so that I notice no regression.
 4. As a Pi user, I want the live session view (steer/queue, run timeline, Pi events) to keep working after the migration, so that interactive sessions are unaffected.
-5. As a Pi user, I want a Pi runtime crash to never freeze or kill the Pig window, so that the dashboard survives an engine failure.
+5. As a Pi user, I want a Pi runtime crash to never freeze or kill the PiGUI window, so that the dashboard survives an engine failure.
 6. As a Pi user, I want a slow or stuck session-log parse to never freeze the UI, so that the window stays responsive.
 7. As a Pi developer, I want the desktop shell to be Electron, so that I can later embed a browser with page preview and DOM annotation — the load-bearing reason for the switch.
 8. As a Pi developer, I want the session-log parser and `pi` subprocess management to live in a Node `utilityProcess`, so that the backend is isolated from the window and can later be relocated behind a remote transport.

@@ -1,4 +1,4 @@
-# PRD: Pig V1.5 — 三 Tab 应用壳 + 用量 Dashboard + 配置清单
+# PRD: PiGUI V1.5 — 三 Tab 应用壳 + 用量 Dashboard + 配置清单
 
 Status: done
 Feature: v1.5-usage-config-dashboard
@@ -6,13 +6,13 @@ Created: 2026-06-24
 
 > 🗄️ 历史归档（更新于 2026-06-29）：本 PRD 写于 Tauri 外壳时期，记录的是**当时**的决策。外壳此后迁至 Electron（见 [ADR-0013](../../docs/adr/0013-electron-shell-and-relocatable-backend.md)）：后端从 Rust 改为 Node（utilityProcess），原"Tauri 命令"现为统一 RPC 协议方法，fixture 现位于仓库根 `fixtures/pi-agent`。当前架构真相以 [CONTEXT.md](../../CONTEXT.md) 与 `docs/adr/` 为准；下文 Tauri/Rust 分工描述按历史阅读。
 
-> 定位：V1 让我**看清单次会话**（这步花了多少、它在想什么）。V1.5 把 Pig 从"单会话浏览器"升级成一个**左右分栏的 SaaS 形态应用**，新增两个俯瞰视角——**用量**（跨会话的成本/用量趋势，回答"我怎么在用 Pi、钱往哪走"）和**配置**（我的 Pi 装成什么样了）。原 PRD 里 V1.5 的「成本瀑布图 + 上下文增长曲线」经复盘**作废**（见 Further Notes）。
+> 定位：V1 让我**看清单次会话**（这步花了多少、它在想什么）。V1.5 把 PiGUI 从"单会话浏览器"升级成一个**左右分栏的 SaaS 形态应用**，新增两个俯瞰视角——**用量**（跨会话的成本/用量趋势，回答"我怎么在用 Pi、钱往哪走"）和**配置**（我的 Pi 装成什么样了）。原 PRD 里 V1.5 的「成本瀑布图 + 上下文增长曲线」经复盘**作废**（见 Further Notes）。
 
 ---
 
 ## Problem Statement
 
-我（Pi 的日常使用者）现在用 Pig 只能**一次看一个会话**。但我心里其实有两类、用 V1 答不了的问题：
+我（Pi 的日常使用者）现在用 PiGUI 只能**一次看一个会话**。但我心里其实有两类、用 V1 答不了的问题：
 
 1. **跨会话的俯瞰**：这周/这个月我用 Pi 一共烧了多少钱？哪个项目最吞钱？我哪几天在重度使用、哪几天没碰？这些只有把**所有会话聚合起来**才看得出来，而 V1 的列表是"一行一个会话"，没有任何汇总与趋势。
 2. **我的 Pi 现状**：我装了哪些包、开了哪些 extensions、有哪些 skills、默认用哪个模型和思考力度——这些散落在 `~/.pi/agent` 的配置文件和目录里，我没有一个地方能一眼看全。
@@ -21,7 +21,7 @@ Created: 2026-06-24
 
 ## Solution
 
-把 Pig 重做成一个**左右分栏的桌面应用**（左侧列表/导航，右侧内容，和常见 SaaS 应用一致），顶层三个 Tab：
+把 PiGUI 重做成一个**左右分栏的桌面应用**（左侧列表/导航，右侧内容，和常见 SaaS 应用一致），顶层三个 Tab：
 
 1. **Trace**：就是 V1 已有的会话浏览（左：会话列表，右：单会话标注式时间线）。V1.5 只把它**原样搬进新外壳**，内容不重做。
 2. **用量（Usage）**：一块**纵向滚动的图表画布**，把所有会话聚合成趋势——
@@ -33,7 +33,7 @@ Created: 2026-06-24
 
 ## User Stories
 
-1. As a Pi user, I want Pig 以左右分栏（左列表/导航、右内容）的形式组织，so that 它像一个正常的 SaaS 应用、三类视图有统一的归处。
+1. As a Pi user, I want PiGUI 以左右分栏（左列表/导航、右内容）的形式组织，so that 它像一个正常的 SaaS 应用、三类视图有统一的归处。
 2. As a Pi user, I want 顶层有「Trace / 用量 / 配置」三个 Tab，so that 我能按"看一次会话 / 看整片趋势 / 看工具配置"的心情切换。
 3. As a Pi user, I want 切换 Tab 时左侧列表/导航与右侧内容随之联动，so that 每个 Tab 都遵循一致的"左选、右看"心智模型。
 4. As a Pi user, I want 「Trace」Tab 保留 V1 已有的会话列表与单会话时间线（含成本/token 徽章、thinking、工具 I/O、按项目过滤），so that 升级外壳不损失我已经在用的复盘能力。
@@ -52,16 +52,16 @@ Created: 2026-06-24
 17. As a Pi user, I want 看到已启用的 extensions，so that 我知道有哪些扩展脚本在生效。
 18. As a Pi user, I want 看到本地可用的 skills 列表，so that 我清楚 Pi 手上有哪些技能。
 19. As a Pi user, I want 看到 prompt templates 这个类目，且当我一个都没安装时显示"未安装"而非空白或报错，so that 这个类目即便为空也表达清楚。
-20. As a Pi user, I want Pig 读取 `PI_CODING_AGENT_DIR`（回退 `~/.pi/agent`）来定位配置，so that 与 V1 一致、非默认目录也能用。
+20. As a Pi user, I want PiGUI 读取 `PI_CODING_AGENT_DIR`（回退 `~/.pi/agent`）来定位配置，so that 与 V1 一致、非默认目录也能用。
 21. As a Pi user, I want 配置页只读、绝不写回任何配置文件，so that 看配置这件事永远不会改坏我的 Pi 设置。
 22. As a Pi user, I want 配置页永远不读取或展示 `auth.json` 的内容，so that 我的密钥不会被这个工具碰到或泄露。
-23. As a Pi user, I want 用量与配置的数据在我切回 Pig（窗口聚焦）或手动刷新时更新，so that 跑完新会话/改了配置后能看到最新状态，与 V1 的刷新心智一致。
+23. As a Pi user, I want 用量与配置的数据在我切回 PiGUI（窗口聚焦）或手动刷新时更新，so that 跑完新会话/改了配置后能看到最新状态，与 V1 的刷新心智一致。
 24. As a Pi user, I want 这三个 Tab 的视觉延续 V1 的设计 token（颜色不硬编码、暗色模式可用），so that 整个应用观感统一。
 
 ## Implementation Decisions
 
 ### 架构总览
-- **沿用 V1 的被动观察者架构**：Pig 仍只读 `~/.pi/agent`（及配置文件），不启动/不接管 Pi，不引入任何 LLM 调用、不做实时监听。V1.5 不改变这一根本姿态。
+- **沿用 V1 的被动观察者架构**：PiGUI 仍只读 `~/.pi/agent`（及配置文件），不启动/不接管 Pi，不引入任何 LLM 调用、不做实时监听。V1.5 不改变这一根本姿态。
 - **Tauri 分工不变**：Rust 后端做文件读取/解析/聚合（纯函数为主），React 前端做渲染与前端聚合。
 
 ### 前端：应用外壳与三 Tab
@@ -117,8 +117,8 @@ Created: 2026-06-24
 
 ## Further Notes
 
-- **为什么推翻原 V1.5（两张图）**：经一轮 grilling，确认 Pig 的价值尺子是 **"复盘建立直觉、改进下一次会话的开法"**（而非"修当下"——被动事后工具天然做不到修当下）。据此，原定的成本瀑布图（用户无法据此改变行为，钱已花、且多数步骤非用户所选）与上下文增长曲线被判定行动性不足而作废；功能重心转向"跨会话俯瞰（用量）"与"工具现状（配置）"两个**用户真会反复看**的视角。
-- **竞品调研结论（支撑 V2 而非 V1.5）**：LLM/Agent trace 工具（LangSmith、Langfuse、Phoenix 等）在"忠实展示 agent 做了什么"上已成熟，但在"它为什么错、从哪错"上集体留白——这是 Pig 未来（V2 的 Trace 增强）可独占的差异化空间。V1.5 暂不触碰，先把外壳与两个俯瞰视图立住。
+- **为什么推翻原 V1.5（两张图）**：经一轮 grilling，确认 PiGUI 的价值尺子是 **"复盘建立直觉、改进下一次会话的开法"**（而非"修当下"——被动事后工具天然做不到修当下）。据此，原定的成本瀑布图（用户无法据此改变行为，钱已花、且多数步骤非用户所选）与上下文增长曲线被判定行动性不足而作废；功能重心转向"跨会话俯瞰（用量）"与"工具现状（配置）"两个**用户真会反复看**的视角。
+- **竞品调研结论（支撑 V2 而非 V1.5）**：LLM/Agent trace 工具（LangSmith、Langfuse、Phoenix 等）在"忠实展示 agent 做了什么"上已成熟，但在"它为什么错、从哪错"上集体留白——这是 PiGUI 未来（V2 的 Trace 增强）可独占的差异化空间。V1.5 暂不触碰，先把外壳与两个俯瞰视图立住。
 - **数据可行性已验证**：`settings.json` 含 model/provider/thinking/theme/packages/extensions；`skills/`、`extensions/` 目录可列；`auth.json` 含密钥、永不读取；prompt templates 路径待用户安装后再确认（设计上按"可能为空"处理）。
 - **工程量天平**：用量页 = 纯前端聚合现有 `list_sessions()`，零新增后端命令；配置页 = 一个可单测的纯函数后端命令 + 前端清单。两者都不重，外壳重构是一次性结构投资、三 Tab 共同受益。
 - **build-in-public 立场延续 V1**：自用工具优先，做到日用顺手即可，不为分发做额外工程。

@@ -24,9 +24,9 @@ apps/desktop/src/
 
 ## import 方向：只向下，经 `@/` alias
 
-- 依赖方向：`app → pages → entities → shared → @pig/core`，只向下，不反向。
+- 依赖方向：`app → pages → entities → shared → @pigui/core`，只向下，不反向。
 - intra-app import 一律用 `@/<layer>/<slice>/<module>` alias（配在 tsconfig / vite / electron-vite），位置无关——文件在层间移动不破 import，测试可自由 co-locate。
-- 跨包仍用 `@pig/core` / `@pig/backend` / `@pig/core/testing`。
+- 跨包仍用 `@pigui/core` / `@pigui/backend` / `@pigui/core/testing`。
 
 ## Consequences
 
