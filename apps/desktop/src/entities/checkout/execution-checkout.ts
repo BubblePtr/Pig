@@ -5,8 +5,12 @@ export type { ExecutionCheckoutGitClient } from "@pigui/core";
 
 export type ProjectExecutionTarget = {
   id: string;
-  repoRoot: string;
+  repoRoot?: string;
   projectRoot: string;
+};
+
+type GitProjectExecutionTarget = ProjectExecutionTarget & {
+  repoRoot: string;
 };
 
 export type ExecutionCheckoutStrategy = "foreground-local" | "background-managed";
@@ -133,17 +137,20 @@ function localCheckout(input: {
   projectRelativePath: string;
   now: () => string;
 }): ExecutionCheckout {
-  const repoRoot = trimTrailingSlash(normalizePath(input.project.repoRoot));
   const projectRoot = trimTrailingSlash(normalizePath(input.project.projectRoot));
+  const repoRoot = input.project.repoRoot
+    ? trimTrailingSlash(normalizePath(input.project.repoRoot))
+    : null;
+  const root = repoRoot ?? projectRoot;
 
   return {
     mode: "foreground-local",
-    root: repoRoot,
-    repoRoot,
+    root,
+    repoRoot: repoRoot ?? undefined,
     projectRoot,
     projectRelativePath: input.projectRelativePath,
-    executionCheckoutRoot: repoRoot,
-    diffRoot: repoRoot,
+    executionCheckoutRoot: root,
+    diffRoot: repoRoot ?? undefined,
     runtimeCwd: projectRoot,
     sessionBound: false,
     disposable: false,
@@ -153,8 +160,52 @@ function localCheckout(input: {
   };
 }
 
+async function isGitRepository(
+  gitClient: ExecutionCheckoutGitClient | undefined,
+  repoRoot: string,
+) {
+  if (!gitClient) {
+    return true;
+  }
+
+  try {
+    return await gitClient.isGitRepository(repoRoot);
+  } catch {
+    return false;
+  }
+}
+
+async function resolveGitProject(
+  project: ProjectExecutionTarget,
+  gitClient: ExecutionCheckoutGitClient | undefined,
+): Promise<GitProjectExecutionTarget | null> {
+  if (project.repoRoot) {
+    const canUseRepoRoot = await isGitRepository(gitClient, project.repoRoot);
+
+    return canUseRepoRoot
+      ? {
+          ...project,
+          repoRoot: project.repoRoot,
+        }
+      : null;
+  }
+
+  if (!gitClient) {
+    return null;
+  }
+
+  const canUseProjectRoot = await isGitRepository(gitClient, project.projectRoot);
+
+  return canUseProjectRoot
+    ? {
+        ...project,
+        repoRoot: project.projectRoot,
+      }
+    : null;
+}
+
 function managedCheckout(input: {
-  project: ProjectExecutionTarget;
+  project: GitProjectExecutionTarget;
   sessionId: string;
   worktreesRoot: string;
   projectRelativePath: string;
@@ -189,33 +240,44 @@ export function createExecutionCheckoutManager(
       const now = input.now ?? (() => new Date().toISOString());
       const project = {
         ...input.project,
-        repoRoot: trimTrailingSlash(normalizePath(input.project.repoRoot)),
         projectRoot: trimTrailingSlash(normalizePath(input.project.projectRoot)),
+        repoRoot: input.project.repoRoot
+          ? trimTrailingSlash(normalizePath(input.project.repoRoot))
+          : undefined,
       };
-      const projectRelativePath = relativePathInside(project.repoRoot, project.projectRoot);
+      const gitProject = await resolveGitProject(project, options.gitClient);
+      const checkoutProject = gitProject ?? {
+        ...project,
+        repoRoot: undefined,
+      };
+      const projectRelativePath = gitProject
+        ? relativePathInside(gitProject.repoRoot, gitProject.projectRoot)
+        : ".";
 
       if (input.strategy === "foreground-local") {
-        return localCheckout({ project, projectRelativePath, now });
+        return localCheckout({ project: checkoutProject, projectRelativePath, now });
       }
 
-      const canUseManagedWorktree = options.gitClient
-        ? await options.gitClient.isGitRepository(project.repoRoot)
-        : false;
+      if (!gitProject) {
+        return localCheckout({ project: checkoutProject, projectRelativePath, now });
+      }
+
+      const canUseManagedWorktree = Boolean(options.gitClient);
 
       if (!canUseManagedWorktree) {
-        return localCheckout({ project, projectRelativePath, now });
+        return localCheckout({ project: checkoutProject, projectRelativePath, now });
       }
 
       const checkout = managedCheckout({
-        project,
+        project: gitProject,
         sessionId: input.sessionId,
-        worktreesRoot: options.worktreesRoot ?? defaultWorktreesRoot(project.repoRoot),
+        worktreesRoot: options.worktreesRoot ?? defaultWorktreesRoot(gitProject.repoRoot),
         projectRelativePath,
         now,
       });
 
       await options.gitClient?.addDetachedWorktree({
-        repoRoot: project.repoRoot,
+        repoRoot: gitProject.repoRoot,
         checkoutRoot: checkout.executionCheckoutRoot ?? checkout.root,
         sessionId: input.sessionId,
       });

@@ -116,6 +116,15 @@ function browserSessionDetail(summary: SessionSummary): SessionDetail {
 
 function invokeBrowserFallback<T>(command: string, args?: InvokeArgs): Promise<T> {
   switch (command) {
+    case "select_project_directory": {
+      if (typeof window === "undefined") {
+        return Promise.resolve(null as T);
+      }
+
+      const selectedPath = window.prompt("Project path");
+
+      return Promise.resolve((selectedPath?.trim() || null) as T);
+    }
     case "list_sessions":
       return Promise.resolve(browserSessionSummaryFixture as T);
     case "get_session_detail": {
@@ -141,6 +150,10 @@ export function invoke<T>(command: string, args?: InvokeArgs) {
   }
 
   return invokeBrowserFallback<T>(command, args);
+}
+
+export function selectProjectDirectory() {
+  return invoke<string | null>("select_project_directory");
 }
 
 export async function onWindowFocusChanged(refetch: () => unknown) {

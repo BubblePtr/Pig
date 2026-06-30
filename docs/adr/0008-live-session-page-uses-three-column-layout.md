@@ -2,7 +2,7 @@
 
 PiGUI 首版的 Session 页面采用三栏结构：
 
-1. 左侧是 Project / Session 列表，用于切换 Project、查看当前 Project 下的 Sessions、创建新 Session、恢复或归档旧 Session。未提交 Session Draft 不作为列表项出现，只在 New Session / 加号入口显示轻量提示；Session 有未看新消息或 run 结果时，可以显示 Unread Result Indicator。列表默认排序为 active run 在前，其次有 unread result，其余按最近更新时间倒序；active run 组内按最近 runtime event 时间倒序。
+1. 左侧是 Project Sidebar，用于展示 Project Registry 中所有 Project；每个 Project 可展开查看自己的 Sessions，并提供 New Session、恢复或归档旧 Session 的入口。未提交 Session Draft 不作为列表项出现，只在目标 Project 或 composer 上显示轻量提示；Session 有未看新消息、run 结果或 Follow-up Draft 时，可以显示对应 indicator。Session 列表默认排序为 active run 在前，其次有 unread result，其余按最近更新时间倒序；active run 组内按最近 runtime event 时间倒序。
 2. 中间是 Live Chat + run timeline，用于展示 Pi 消息、runtime event stream、工具调用、状态变化、错误、follow-up 和 abort 等交互主线。
 3. 右侧是 Structured Action Surface，用于展示 diff 摘要、Execution Checkout、runtime `cwd`、model/cost 摘要，以及 handoff、commit、push、PR、archive、promote permanent checkout 等结构化动作。
 

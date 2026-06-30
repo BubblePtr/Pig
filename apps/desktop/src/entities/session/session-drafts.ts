@@ -1,13 +1,16 @@
 export type SessionDraft = {
-  projectId: string;
+  projectId: string | null;
   prompt: string;
   updatedAt: string;
 };
 
-const storageKey = "pig.sessionDrafts.v1";
-const draftsChangedEvent = "pig:session-drafts-changed";
+export type GetSessionDraftOptions = {
+  projectIds?: string[];
+};
 
-type SessionDraftMap = Record<string, SessionDraft>;
+const storageKey = "pig.sessionDraft.v2";
+const legacyStorageKey = "pig.sessionDrafts.v1";
+const draftsChangedEvent = "pig:session-drafts-changed";
 
 function nowIso() {
   return new Date().toISOString();
@@ -21,44 +24,78 @@ function getStorage() {
   return window.localStorage;
 }
 
-function readDrafts(): SessionDraftMap {
-  const storage = getStorage();
+function isSessionDraft(value: unknown): value is SessionDraft {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    ((value as { projectId?: unknown }).projectId === null ||
+      typeof (value as { projectId?: unknown }).projectId === "string") &&
+    typeof (value as { prompt?: unknown }).prompt === "string" &&
+    typeof (value as { updatedAt?: unknown }).updatedAt === "string"
+  );
+}
 
-  if (!storage) {
-    return {};
-  }
-
-  const rawDrafts = storage.getItem(storageKey);
-
+function newestLegacyDraft(rawDrafts: string | null): SessionDraft | null {
   if (!rawDrafts) {
-    return {};
+    return null;
   }
 
   try {
-    const parsed = JSON.parse(rawDrafts) as SessionDraftMap;
-
-    return Object.fromEntries(
-      Object.entries(parsed).filter(
+    const parsed = JSON.parse(rawDrafts) as Record<string, SessionDraft>;
+    const drafts = Object.entries(parsed)
+      .filter(
         ([projectId, draft]) =>
-          draft?.projectId === projectId && typeof draft.prompt === "string",
-      ),
-    );
+          draft?.projectId === projectId &&
+          typeof draft.prompt === "string" &&
+          typeof draft.updatedAt === "string",
+      )
+      .map(([, draft]) => draft)
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+
+    return drafts[0] ?? null;
   } catch {
-    return {};
+    return null;
   }
 }
 
-function writeDrafts(drafts: SessionDraftMap) {
+function readDraft(): SessionDraft | null {
+  const storage = getStorage();
+
+  if (!storage) {
+    return null;
+  }
+
+  const rawDraft = storage.getItem(storageKey);
+
+  if (rawDraft) {
+    try {
+      const parsed = JSON.parse(rawDraft) as SessionDraft;
+
+      return isSessionDraft(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+
+  return newestLegacyDraft(storage.getItem(legacyStorageKey));
+}
+
+function writeDraft(draft: SessionDraft | null) {
   const storage = getStorage();
 
   if (!storage) {
     return;
   }
 
-  storage.setItem(storageKey, JSON.stringify(drafts));
+  if (!draft) {
+    storage.removeItem(storageKey);
+    return;
+  }
+
+  storage.setItem(storageKey, JSON.stringify(draft));
 }
 
-function emitDraftsChanged(projectId: string) {
+function emitDraftsChanged(projectId: string | null) {
   if (typeof window === "undefined") {
     return;
   }
@@ -66,67 +103,102 @@ function emitDraftsChanged(projectId: string) {
   window.dispatchEvent(new CustomEvent(draftsChangedEvent, { detail: { projectId } }));
 }
 
-export function getSessionDraft(projectId: string) {
-  return readDrafts()[projectId] ?? null;
-}
-
-export function hasSessionDraft(projectId: string) {
-  return getSessionDraft(projectId) !== null;
-}
-
-export function ensureSessionDraft(projectId: string) {
-  const drafts = readDrafts();
-  const existingDraft = drafts[projectId];
-
-  if (existingDraft) {
-    emitDraftsChanged(projectId);
-
-    return existingDraft;
+function clearMissingTarget(
+  draft: SessionDraft,
+  options: GetSessionDraftOptions | undefined,
+) {
+  if (!draft.projectId || !options?.projectIds) {
+    return draft;
   }
 
-  const draft = {
-    projectId,
-    prompt: "",
+  if (options.projectIds.includes(draft.projectId)) {
+    return draft;
+  }
+
+  const nextDraft = {
+    ...draft,
+    projectId: null,
     updatedAt: nowIso(),
   };
 
-  writeDrafts({
-    ...drafts,
-    [projectId]: draft,
-  });
+  writeDraft(nextDraft);
+  emitDraftsChanged(draft.projectId);
+
+  return nextDraft;
+}
+
+export function getSessionDraft(
+  options?: GetSessionDraftOptions | string,
+): SessionDraft | null {
+  const draft = readDraft();
+
+  if (!draft) {
+    return null;
+  }
+
+  return clearMissingTarget(draft, typeof options === "string" ? undefined : options);
+}
+
+export function hasSessionDraft(projectId: string) {
+  const draft = getSessionDraft();
+
+  return draft !== null && draft.projectId === projectId;
+}
+
+export function ensureSessionDraft(projectId: string | null = null) {
+  const existingDraft = getSessionDraft();
+  const draft: SessionDraft = {
+    projectId,
+    prompt: existingDraft?.prompt ?? "",
+    updatedAt: nowIso(),
+  };
+
+  writeDraft(draft);
   emitDraftsChanged(projectId);
 
   return draft;
 }
 
-export function saveSessionDraft(projectId: string, prompt: string) {
-  const drafts = readDrafts();
-  const draft = {
+export function saveSessionDraft(projectId: string | null, prompt: string) {
+  const draft: SessionDraft = {
     projectId,
     prompt,
     updatedAt: nowIso(),
   };
 
-  writeDrafts({
-    ...drafts,
-    [projectId]: draft,
-  });
+  writeDraft(draft);
   emitDraftsChanged(projectId);
 
   return draft;
 }
 
-export function clearSessionDraft(projectId: string) {
-  const drafts = readDrafts();
+export function setSessionDraftTarget(projectId: string | null) {
+  const existingDraft = getSessionDraft();
+  const draft: SessionDraft = {
+    projectId,
+    prompt: existingDraft?.prompt ?? "",
+    updatedAt: nowIso(),
+  };
 
-  if (!(projectId in drafts)) {
+  writeDraft(draft);
+  emitDraftsChanged(projectId);
+
+  return draft;
+}
+
+export function clearSessionDraft(projectId?: string | null) {
+  const draft = getSessionDraft();
+
+  if (!draft) {
     return;
   }
 
-  const { [projectId]: _removedDraft, ...remainingDrafts } = drafts;
+  if (projectId !== undefined && draft.projectId !== projectId) {
+    return;
+  }
 
-  writeDrafts(remainingDrafts);
-  emitDraftsChanged(projectId);
+  writeDraft(null);
+  emitDraftsChanged(draft.projectId);
 }
 
 export function subscribeSessionDrafts(listener: () => void) {
@@ -135,7 +207,7 @@ export function subscribeSessionDrafts(listener: () => void) {
   }
 
   const handleStorage = (event: StorageEvent) => {
-    if (event.key === storageKey) {
+    if (event.key === storageKey || event.key === legacyStorageKey) {
       listener();
     }
   };

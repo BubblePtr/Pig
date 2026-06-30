@@ -1,7 +1,17 @@
 import { useRouter, useRouterState } from "@tanstack/react-router";
 import { AppLayout } from "@heroui-pro/react/app-layout";
 import { Sidebar } from "@heroui-pro/react/sidebar";
-import { BarChart3, Circle, ListTree, LoaderCircle, Plus, Settings } from "lucide-react";
+import {
+  BarChart3,
+  ChevronRight,
+  Circle,
+  ListTree,
+  LoaderCircle,
+  MoreHorizontal,
+  Plus,
+  Settings,
+  Trash2,
+} from "lucide-react";
 import {
   useEffect,
   useLayoutEffect,
@@ -12,8 +22,21 @@ import {
   type ReactNode,
 } from "react";
 import {
+  addProjectToRegistry,
+  getProjectRegistry,
+  removeProjectFromRegistry,
+  subscribeProjectRegistry,
+  type ProjectRegistryEntry,
+} from "@/entities/project/project-registry";
+import {
+  hasFollowUpDraft,
+  subscribeFollowUpDrafts,
+} from "@/entities/session/follow-up-drafts";
+import {
   ensureSessionDraft,
+  getSessionDraft,
   hasSessionDraft,
+  setSessionDraftTarget,
   subscribeSessionDrafts,
 } from "@/entities/session/session-drafts";
 import {
@@ -22,6 +45,7 @@ import {
   type SessionProjection,
   type SessionProjectionListItem,
 } from "@/entities/session/session-projection";
+import { selectProjectDirectory } from "@/shared/runtime";
 
 type AppFrameProps = {
   sidebar?: ReactNode;
@@ -32,11 +56,7 @@ type AppFrameProps = {
   children: ReactNode;
 };
 
-const sidebarProject = {
-  id: "pig",
-  name: "Pig",
-  route: "/projects/pig/sessions",
-};
+const defaultSidebarProjectId = "/Users/void/code/opensource/Pig";
 
 function createSidebarProjection({
   id,
@@ -57,7 +77,7 @@ function createSidebarProjection({
 }): SessionProjection {
   const projection = createSessionProjection({
     id,
-    projectId: sidebarProject.id,
+    projectId: defaultSidebarProjectId,
     initialPrompt: title,
     createdAt: "2026-06-26T08:00:00.000Z",
   });
@@ -170,6 +190,7 @@ const systemNavigationItems = [
 const sidebarDefaultSize = "280px";
 const sidebarMinSize = "240px";
 const sidebarMaxSize = "360px";
+const projectExpansionStorageKey = "pig.projectSidebar.expanded.v1";
 const sidebarStyle = {
   "--sidebar-width": sidebarDefaultSize,
 } as CSSProperties;
@@ -241,118 +262,273 @@ function DraftBadge() {
   );
 }
 
+function projectRoute(projectId: string) {
+  return `/projects/${encodeURIComponent(projectId)}/sessions`;
+}
+
+function readProjectExpansionState(): Record<string, boolean> {
+  if (typeof window === "undefined") {
+    return {};
+  }
+
+  const raw = window.localStorage.getItem(projectExpansionStorageKey);
+
+  if (!raw) {
+    return {};
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Record<string, boolean>;
+
+    return Object.fromEntries(
+      Object.entries(parsed).filter((entry): entry is [string, boolean] => {
+        const [projectId, expanded] = entry;
+
+        return typeof projectId === "string" && typeof expanded === "boolean";
+      }),
+    );
+  } catch {
+    return {};
+  }
+}
+
+function writeProjectExpansionState(expandedProjects: Record<string, boolean>) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(projectExpansionStorageKey, JSON.stringify(expandedProjects));
+}
+
+function AddProjectButton({
+  onAddProject,
+}: {
+  onAddProject: (path: string) => void;
+}) {
+  const [choosing, setChoosing] = useState(false);
+
+  const chooseProject = async () => {
+    if (choosing) {
+      return;
+    }
+
+    setChoosing(true);
+    try {
+      const selectedPath = await selectProjectDirectory();
+      const candidate = selectedPath?.trim();
+
+      if (candidate) {
+        onAddProject(candidate);
+      }
+    } finally {
+      setChoosing(false);
+    }
+  };
+
+  return (
+    <div className="px-3 py-2">
+      <button
+        aria-busy={choosing}
+        className="inline-flex h-8 w-full items-center justify-center gap-2 rounded-md border border-default px-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        type="button"
+        onClick={() => void chooseProject()}
+      >
+        <Plus aria-hidden="true" className="size-4" />
+        Add Project
+      </button>
+    </div>
+  );
+}
+
 function ProjectNavigation({
   draftViewActive,
   pathname,
+  projects,
   selectedSessionId,
   sessions,
+  expandedProjects,
+  onAddProject,
+  onToggleProject,
   onOpenSession,
   onNewSession,
+  onRemoveProject,
 }: {
   draftViewActive: boolean;
   pathname: string;
+  projects: ProjectRegistryEntry[];
   selectedSessionId: string | null;
   sessions: SessionProjectionListItem[];
-  onOpenSession: (sessionId: string) => void;
+  expandedProjects: Record<string, boolean>;
+  onAddProject: (path: string) => void;
+  onToggleProject: (projectId: string) => void;
+  onOpenSession: (sessionId: string, projectId: string) => void;
   onNewSession: (projectId: string) => void;
+  onRemoveProject: (projectId: string) => void;
 }) {
   const projectActive = pathname.startsWith("/projects/");
-  const [hasDraft, setHasDraft] = useState(() => hasSessionDraft(sidebarProject.id));
+  const [draftVersion, setDraftVersion] = useState(0);
+  const [followUpDraftVersion, setFollowUpDraftVersion] = useState(0);
+  const [openActionsProjectId, setOpenActionsProjectId] = useState<string | null>(null);
 
   useEffect(
     () =>
       subscribeSessionDrafts(() => {
-        setHasDraft(hasSessionDraft(sidebarProject.id));
+        setDraftVersion((version) => version + 1);
+      }),
+    [],
+  );
+  useEffect(
+    () =>
+      subscribeFollowUpDrafts(() => {
+        setFollowUpDraftVersion((version) => version + 1);
       }),
     [],
   );
 
-  return (
-    <Sidebar.Group data-testid="sidebar-projects">
-      <Sidebar.GroupLabel className="flex items-center gap-2 px-3 text-sm normal-case">
-        <span className="min-w-0 flex-1 truncate">{sidebarProject.name}</span>
-        {hasDraft ? <DraftBadge /> : null}
-        <button
-          aria-label={`New Session for ${sidebarProject.name}`}
-          className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-muted/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          type="button"
-          onClick={() => onNewSession(sidebarProject.id)}
-        >
-          <Plus aria-hidden="true" className="size-3.5" />
-        </button>
-      </Sidebar.GroupLabel>
-      <Sidebar.Menu aria-label="Pig project sessions" showGuideLines={false}>
-        <Sidebar.MenuItem
-          id={`${sidebarProject.id}-new-session`}
-          isCurrent={draftViewActive}
-          textValue="New Session"
-          onAction={() => onNewSession(sidebarProject.id)}
-        >
-          <Sidebar.MenuIcon>
-            <Plus className="size-4" />
-          </Sidebar.MenuIcon>
-          <Sidebar.MenuLabel>New Session</Sidebar.MenuLabel>
-          {hasDraft ? (
-            <Sidebar.MenuActions className="ml-auto">
-              <DraftBadge />
-            </Sidebar.MenuActions>
-          ) : null}
-        </Sidebar.MenuItem>
-        {sessions.map((session) => (
-          <Sidebar.MenuItem
-            key={session.id}
-            id={session.id}
-            isCurrent={!draftViewActive && projectActive && session.id === selectedSessionId}
-            textValue={session.title}
-            onAction={() => onOpenSession(session.id)}
-          >
-            <Sidebar.MenuIcon className="justify-center">
-              <SidebarSessionGlyph active={session.active} unread={session.unread} />
-            </Sidebar.MenuIcon>
-            <Sidebar.MenuLabel className="min-w-0">
-              <span className="block truncate">{session.title}</span>
-            </Sidebar.MenuLabel>
-            <Sidebar.MenuActions className="ml-auto text-xs tabular-nums text-muted">
-              {session.updatedAt.slice(11, 16)}
-            </Sidebar.MenuActions>
-          </Sidebar.MenuItem>
-        ))}
-      </Sidebar.Menu>
-    </Sidebar.Group>
-  );
-}
+  if (projects.length === 0) {
+    return (
+      <Sidebar.Group
+        className="min-h-0 flex-1 overflow-y-auto"
+        data-testid="sidebar-projects"
+      >
+        <Sidebar.GroupLabel className="px-3 text-sm normal-case">
+          Projects
+        </Sidebar.GroupLabel>
+        <AddProjectButton onAddProject={onAddProject} />
+      </Sidebar.Group>
+    );
+  }
 
-function WorkspaceNavigation({
-  draftViewActive,
-  pathname,
-  selectedSessionId,
-  sessions,
-  onOpenSession,
-  onNewSession,
-}: {
-  draftViewActive: boolean;
-  pathname: string;
-  selectedSessionId: string | null;
-  sessions: SessionProjectionListItem[];
-  onOpenSession: (sessionId: string) => void;
-  onNewSession: (projectId: string) => void;
-}) {
   return (
     <Sidebar.Group
       className="min-h-0 flex-1 overflow-y-auto"
-      data-testid="sidebar-workspace"
+      data-testid="sidebar-projects"
     >
       <Sidebar.GroupLabel className="px-3 text-sm normal-case">
-        Workspace
+        Projects
       </Sidebar.GroupLabel>
-      <ProjectNavigation
-        draftViewActive={draftViewActive}
-        pathname={pathname}
-        selectedSessionId={selectedSessionId}
-        sessions={sessions}
-        onOpenSession={onOpenSession}
-        onNewSession={onNewSession}
-      />
+      {projects.map((project) => {
+        const projectSessions = sessions.filter(
+          (session) => session.projection.projectId === project.id,
+        );
+        const expanded = expandedProjects[project.id] ?? true;
+        const hasDraft = hasSessionDraft(project.id);
+        const hasProjectDraft =
+          hasDraft || projectSessions.some((session) => hasFollowUpDraft(session.id));
+
+        void draftVersion;
+        void followUpDraftVersion;
+
+        return (
+          <div key={project.id} className="grid gap-1">
+            <Sidebar.GroupLabel className="flex items-center gap-2 px-3 text-sm normal-case">
+              <button
+                aria-expanded={expanded}
+                aria-label={`${expanded ? "Collapse" : "Expand"} ${project.displayName}`}
+                className="inline-flex min-w-0 flex-1 items-center gap-2 text-left text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                type="button"
+                onClick={() => onToggleProject(project.id)}
+              >
+                <ChevronRight
+                  aria-hidden="true"
+                  className={`size-3.5 shrink-0 transition-transform ${expanded ? "rotate-90" : ""}`}
+                />
+                <span className="min-w-0 flex-1 truncate">{project.displayName}</span>
+              </button>
+              {hasProjectDraft ? <DraftBadge /> : null}
+              <button
+                aria-label={`New Session for ${project.displayName}`}
+                className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-muted/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                type="button"
+                onClick={() => onNewSession(project.id)}
+              >
+                <Plus aria-hidden="true" className="size-3.5" />
+              </button>
+              <div className="relative shrink-0">
+                <button
+                  aria-expanded={openActionsProjectId === project.id}
+                  aria-label={`Project actions for ${project.displayName}`}
+                  className="inline-flex size-6 items-center justify-center rounded-md text-muted transition-colors hover:bg-muted/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  type="button"
+                  onClick={() =>
+                    setOpenActionsProjectId((currentProjectId) =>
+                      currentProjectId === project.id ? null : project.id,
+                    )
+                  }
+                >
+                  <MoreHorizontal aria-hidden="true" className="size-3.5" />
+                </button>
+                {openActionsProjectId === project.id ? (
+                  <div
+                    className="absolute right-0 top-7 z-20 min-w-40 rounded-md border border-default bg-surface p-1 shadow-lg"
+                    role="menu"
+                  >
+                    <button
+                      className="flex h-8 w-full items-center gap-2 rounded px-2 text-left text-sm text-danger transition-colors hover:bg-danger/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger"
+                      role="menuitem"
+                      type="button"
+                      onClick={() => {
+                        setOpenActionsProjectId(null);
+                        onRemoveProject(project.id);
+                      }}
+                    >
+                      <Trash2 aria-hidden="true" className="size-3.5" />
+                      Remove Project...
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            </Sidebar.GroupLabel>
+            {expanded ? (
+              <Sidebar.Menu
+                aria-label={`${project.displayName} project sessions`}
+                showGuideLines={false}
+              >
+                <Sidebar.MenuItem
+                  id={`${project.id}-new-session`}
+                  isCurrent={draftViewActive}
+                  textValue="New Session"
+                  onAction={() => onNewSession(project.id)}
+                >
+                  <Sidebar.MenuIcon>
+                    <Plus className="size-4" />
+                  </Sidebar.MenuIcon>
+                  <Sidebar.MenuLabel>New Session</Sidebar.MenuLabel>
+                  {hasDraft ? (
+                    <Sidebar.MenuActions className="ml-auto">
+                      <DraftBadge />
+                    </Sidebar.MenuActions>
+                  ) : null}
+                </Sidebar.MenuItem>
+                {projectSessions.length === 0 ? (
+                  <div className="px-8 py-2 text-sm text-muted">No chats</div>
+                ) : null}
+                {projectSessions.map((session) => (
+                  <Sidebar.MenuItem
+                    key={session.id}
+                    id={session.id}
+                    isCurrent={!draftViewActive && projectActive && session.id === selectedSessionId}
+                    textValue={session.title}
+                    onAction={() => onOpenSession(session.id, project.id)}
+                  >
+                    <Sidebar.MenuIcon className="justify-center">
+                      <SidebarSessionGlyph active={session.active} unread={session.unread} />
+                    </Sidebar.MenuIcon>
+                    <Sidebar.MenuLabel className="min-w-0">
+                      <span className="block truncate">{session.title}</span>
+                    </Sidebar.MenuLabel>
+                    <Sidebar.MenuActions className="ml-auto flex items-center gap-1 text-xs tabular-nums text-muted">
+                      {hasFollowUpDraft(session.id) ? <DraftBadge /> : null}
+                      <span>{session.updatedAt.slice(11, 16)}</span>
+                    </Sidebar.MenuActions>
+                  </Sidebar.MenuItem>
+                ))}
+              </Sidebar.Menu>
+            ) : null}
+          </div>
+        );
+      })}
+      <AddProjectButton onAddProject={onAddProject} />
     </Sidebar.Group>
   );
 }
@@ -416,17 +592,27 @@ function SystemNavigation({ pathname }: { pathname: string }) {
 function SidebarPanelContent({
   draftViewActive,
   pathname,
+  projects,
   selectedSessionId,
   sessions,
+  expandedProjects,
+  onAddProject,
+  onToggleProject,
   onOpenSession,
   onNewSession,
+  onRemoveProject,
 }: {
   draftViewActive: boolean;
   pathname: string;
+  projects: ProjectRegistryEntry[];
   selectedSessionId: string | null;
   sessions: SessionProjectionListItem[];
-  onOpenSession: (sessionId: string) => void;
+  expandedProjects: Record<string, boolean>;
+  onAddProject: (path: string) => void;
+  onToggleProject: (projectId: string) => void;
+  onOpenSession: (sessionId: string, projectId: string) => void;
   onNewSession: (projectId: string) => void;
+  onRemoveProject: (projectId: string) => void;
 }) {
   return (
     <>
@@ -438,13 +624,18 @@ function SidebarPanelContent({
       />
       <Sidebar.Content className="min-h-0 flex-1 flex-col overflow-hidden">
         <TraceUsageNavigation pathname={pathname} />
-        <WorkspaceNavigation
+        <ProjectNavigation
           draftViewActive={draftViewActive}
           pathname={pathname}
+          projects={projects}
           selectedSessionId={selectedSessionId}
           sessions={sessions}
+          expandedProjects={expandedProjects}
+          onAddProject={onAddProject}
+          onToggleProject={onToggleProject}
           onOpenSession={onOpenSession}
           onNewSession={onNewSession}
+          onRemoveProject={onRemoveProject}
         />
       </Sidebar.Content>
       <Sidebar.Footer className="shrink-0">
@@ -572,6 +763,10 @@ export function AppFrame({
   const [localSessionProjections, setLocalSessionProjections] = useState(
     defaultSidebarProjectSessionProjections,
   );
+  const [projects, setProjects] = useState(() => getProjectRegistry());
+  const [expandedProjects, setExpandedProjects] = useState(() =>
+    readProjectExpansionState(),
+  );
   const effectiveSessionProjections = sessionProjections ?? localSessionProjections;
   const sessions = useMemo(
     () => getSessionProjectionListItems(effectiveSessionProjections),
@@ -617,6 +812,39 @@ export function AppFrame({
     [],
   );
 
+  useEffect(() => subscribeProjectRegistry(() => setProjects(getProjectRegistry())), []);
+
+  const updateExpandedProjects = (
+    updater: (expandedProjects: Record<string, boolean>) => Record<string, boolean>,
+  ) => {
+    setExpandedProjects((currentExpandedProjects) => {
+      const nextExpandedProjects = updater(currentExpandedProjects);
+
+      writeProjectExpansionState(nextExpandedProjects);
+
+      return nextExpandedProjects;
+    });
+  };
+
+  useEffect(() => {
+    if (!effectiveSelectedSessionId) {
+      return;
+    }
+
+    const selectedProjection = effectiveSessionProjections.find(
+      (projection) => projection.id === effectiveSelectedSessionId,
+    );
+
+    if (!selectedProjection) {
+      return;
+    }
+
+    updateExpandedProjects((currentExpandedProjects) => ({
+      ...currentExpandedProjects,
+      [selectedProjection.projectId]: true,
+    }));
+  }, [effectiveSelectedSessionId, effectiveSessionProjections]);
+
   useLayoutEffect(() => {
     const root = layoutRef.current;
     if (!root) {
@@ -653,14 +881,82 @@ export function AppFrame({
   const handleNewSession = (projectId: string) => {
     ensureSessionDraft(projectId);
     void router.navigate({
-      to: sidebarProject.route as never,
+      to: projectRoute(projectId) as never,
       search: { view: "draft" } as never,
     });
   };
-  const handleOpenSession = (sessionId: string) => {
-    updateSelectedSessionId(sessionId);
+  const handleAddProject = (path: string) => {
+    const result = addProjectToRegistry(path);
+
+    updateExpandedProjects((currentExpandedProjects) => ({
+      ...currentExpandedProjects,
+      [result.project.id]: true,
+    }));
+    handleNewSession(result.project.id);
+  };
+  const handleRemoveProject = (projectId: string) => {
+    const project = projects.find((candidate) => candidate.id === projectId);
+
+    if (!project) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      [
+        `Remove ${project.displayName} from PiGUI?`,
+        "",
+        "Local files and historical Sessions will not be deleted.",
+        "If this Project is the current draft target, the draft text will be kept and the target cleared.",
+      ].join("\n"),
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    if (getSessionDraft()?.projectId === projectId) {
+      setSessionDraftTarget(null);
+    }
+
+    removeProjectFromRegistry(projectId);
+    updateExpandedProjects((currentExpandedProjects) => {
+      const { [projectId]: _removedProject, ...nextExpandedProjects } =
+        currentExpandedProjects;
+
+      return nextExpandedProjects;
+    });
+
+    const selectedProjection = effectiveSelectedSessionId
+      ? effectiveSessionProjections.find(
+          (projection) => projection.id === effectiveSelectedSessionId,
+        )
+      : null;
+
+    if (selectedProjection?.projectId !== projectId) {
+      return;
+    }
+
+    updateSelectedSessionId(null);
+    ensureSessionDraft(null);
     void router.navigate({
-      to: sidebarProject.route as never,
+      to: projectRoute(projectId) as never,
+      search: { view: "draft" } as never,
+    });
+  };
+  const handleToggleProject = (projectId: string) => {
+    updateExpandedProjects((currentExpandedProjects) => ({
+      ...currentExpandedProjects,
+      [projectId]: !(currentExpandedProjects[projectId] ?? true),
+    }));
+  };
+  const handleOpenSession = (sessionId: string, projectId: string) => {
+    updateSelectedSessionId(sessionId);
+    updateExpandedProjects((currentExpandedProjects) => ({
+      ...currentExpandedProjects,
+      [projectId]: true,
+    }));
+    void router.navigate({
+      to: projectRoute(projectId) as never,
     });
   };
 
@@ -677,10 +973,15 @@ export function AppFrame({
           <SidebarPanelContent
             draftViewActive={draftViewActive}
             pathname={pathname}
+            projects={projects}
             selectedSessionId={effectiveSelectedSessionId}
             sessions={sessions}
+            expandedProjects={expandedProjects}
+            onAddProject={handleAddProject}
+            onToggleProject={handleToggleProject}
             onOpenSession={handleOpenSession}
             onNewSession={handleNewSession}
+            onRemoveProject={handleRemoveProject}
           />
         </Sidebar>
       }

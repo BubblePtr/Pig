@@ -39,6 +39,15 @@ describe("Electron shell", () => {
     expect(preload).not.toContain("window.ipcRenderer");
   });
 
+  it("opens a native directory picker for manual Project selection", () => {
+    const main = readProjectFile("apps/desktop/electron/main.ts");
+
+    expect(main).toContain("dialog.showOpenDialog");
+    expect(main).toContain('input.command === "select_project_directory"');
+    expect(main).toContain('title: "Select Project"');
+    expect(main).toContain('properties: ["openDirectory"]');
+  });
+
   it("hosts the backend service inside the utility process entrypoint", () => {
     const backend = readProjectFile("apps/desktop/electron/backend.ts");
 

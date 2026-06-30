@@ -13,7 +13,7 @@ import {
 
 export type ProjectSessionCreationTarget = {
   id: string;
-  repoRoot: string;
+  repoRoot?: string;
   projectRoot: string;
 };
 
@@ -111,10 +111,16 @@ export async function createSessionFromDraft(
   const now = input.now ?? (() => new Date().toISOString());
   const idFactory = input.idFactory ?? defaultIdFactory;
   const checkoutManager = input.checkoutManager ?? createExecutionCheckoutManager();
+  const draftProjectId = input.draft.projectId;
+
+  if (!draftProjectId) {
+    throw new Error("Session Draft target Project is required.");
+  }
+
   let failureStage: SessionCreationFailureStage = "preparing checkout";
   let projection = createSessionProjection({
     id: idFactory(),
-    projectId: input.draft.projectId,
+    projectId: draftProjectId,
     initialPrompt: input.draft.prompt,
     createdAt: now(),
   });

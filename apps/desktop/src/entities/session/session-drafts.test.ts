@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+  clearSessionDraft,
   ensureSessionDraft,
   getSessionDraft,
   hasSessionDraft,
   saveSessionDraft,
+  setSessionDraftTarget,
 } from "@/entities/session/session-drafts";
 
 describe("Session Draft storage", () => {
@@ -11,27 +13,57 @@ describe("Session Draft storage", () => {
     window.localStorage.clear();
   });
 
-  it("keeps at most one persisted draft per Project", () => {
-    const createdDraft = ensureSessionDraft("pig");
-    const savedDraft = saveSessionDraft("pig", "Run the control-plane tests");
-    const resumedDraft = ensureSessionDraft("pig");
+  it("keeps one global draft and retargets it without clearing prompt text", () => {
+    const createdDraft = ensureSessionDraft("/Users/void/code/opensource/Pig");
+    const savedDraft = saveSessionDraft(
+      "/Users/void/code/opensource/Pig",
+      "Run the control-plane tests",
+    );
+    const retargetedDraft = ensureSessionDraft("/Users/void/Documents/study");
 
-    expect(createdDraft).toMatchObject({ projectId: "pig", prompt: "" });
+    expect(createdDraft).toMatchObject({
+      projectId: "/Users/void/code/opensource/Pig",
+      prompt: "",
+    });
     expect(savedDraft).toMatchObject({
-      projectId: "pig",
+      projectId: "/Users/void/code/opensource/Pig",
       prompt: "Run the control-plane tests",
     });
-    expect(resumedDraft).toEqual(savedDraft);
-    expect(getSessionDraft("pig")).toEqual(savedDraft);
+    expect(retargetedDraft).toMatchObject({
+      projectId: "/Users/void/Documents/study",
+      prompt: "Run the control-plane tests",
+    });
+    expect(getSessionDraft()).toEqual(retargetedDraft);
   });
 
-  it("persists drafts independently for different Projects", () => {
-    saveSessionDraft("pig", "Draft for Pig");
-    saveSessionDraft("pig-docs", "Draft for docs");
+  it("clears a missing target Project while preserving the draft text", () => {
+    saveSessionDraft("/Users/void/code/opensource/Pig", "Keep this global draft");
 
-    expect(hasSessionDraft("pig")).toBe(true);
-    expect(hasSessionDraft("pig-docs")).toBe(true);
-    expect(getSessionDraft("pig")?.prompt).toBe("Draft for Pig");
-    expect(getSessionDraft("pig-docs")?.prompt).toBe("Draft for docs");
+    expect(
+      getSessionDraft({
+        projectIds: ["/Users/void/Documents/study"],
+      }),
+    ).toMatchObject({
+      projectId: null,
+      prompt: "Keep this global draft",
+    });
+    expect(getSessionDraft()?.projectId).toBeNull();
+  });
+
+  it("exposes a Project indicator only for the current target Project", () => {
+    saveSessionDraft("/Users/void/code/opensource/Pig", "Draft for Pig");
+
+    expect(hasSessionDraft("/Users/void/code/opensource/Pig")).toBe(true);
+    expect(hasSessionDraft("/Users/void/Documents/study")).toBe(false);
+
+    setSessionDraftTarget("/Users/void/Documents/study");
+
+    expect(hasSessionDraft("/Users/void/code/opensource/Pig")).toBe(false);
+    expect(hasSessionDraft("/Users/void/Documents/study")).toBe(true);
+    expect(getSessionDraft()?.prompt).toBe("Draft for Pig");
+
+    clearSessionDraft();
+
+    expect(getSessionDraft()).toBeNull();
   });
 });

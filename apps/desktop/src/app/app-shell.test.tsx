@@ -10,14 +10,32 @@ import {
   createRoute,
   createRouter,
 } from "@tanstack/react-router";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppFrame } from "@/app/app-shell";
-import { saveSessionDraft } from "@/entities/session/session-drafts";
+import { addProjectToRegistry } from "@/entities/project/project-registry";
+import { saveFollowUpDraft } from "@/entities/session/follow-up-drafts";
+import { getSessionDraft, saveSessionDraft } from "@/entities/session/session-drafts";
+import type { PigRendererApi } from "@/shared/runtime";
+
+const pigProjectPath = "/Users/void/code/opensource/Pig";
+
+function seedPigProject() {
+  addProjectToRegistry(pigProjectPath, {
+    now: () => "2026-06-30T08:00:00.000Z",
+  });
+}
 
 function renderAppFrame(
   path = "/",
-  { toolbarActions }: { toolbarActions?: ReactNode } = {},
+  {
+    seedProjects = true,
+    toolbarActions,
+  }: { seedProjects?: boolean; toolbarActions?: ReactNode } = {},
 ) {
+  if (seedProjects) {
+    seedPigProject();
+  }
+
   const rootRoute = createRootRoute({
     component: () => (
       <AppFrame sidebar={<div>Route sidebar</div>} toolbarActions={toolbarActions}>
@@ -67,6 +85,49 @@ function renderAppFrame(
 describe("AppFrame", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    delete window.pig;
+  });
+
+  it("renders Empty Workspace State when the Project Registry is empty", async () => {
+    renderAppFrame("/projects/pig/sessions", { seedProjects: false });
+
+    expect(await screen.findByText("Main content")).toBeInTheDocument();
+    const projectGroup = screen.getByTestId("sidebar-projects");
+
+    expect(within(projectGroup).getByRole("button", { name: "Add Project" })).toBeInTheDocument();
+    expect(within(projectGroup).queryByPlaceholderText("Absolute local path")).not.toBeInTheDocument();
+    expect(
+      within(projectGroup).queryByRole("button", { name: "New Session for Pig" }),
+    ).not.toBeInTheDocument();
+    expect(within(projectGroup).queryByText("Pig")).not.toBeInTheDocument();
+  });
+
+  it("uses the native directory picker when adding a Project", async () => {
+    const user = userEvent.setup();
+    const invoke = vi.fn(async (command: string) => {
+      if (command === "select_project_directory") {
+        return "/Users/void/Documents/study";
+      }
+
+      return null;
+    });
+
+    window.pig = {
+      invoke: invoke as unknown as PigRendererApi["invoke"],
+      onBackendEvent: () => () => {},
+      onWindowFocusChanged: () => () => {},
+    };
+
+    renderAppFrame("/projects/pig/sessions", { seedProjects: false });
+
+    await user.click(await screen.findByRole("button", { name: "Add Project" }));
+
+    expect(invoke).toHaveBeenCalledWith("select_project_directory", undefined);
+    expect(await screen.findByText("study")).toBeInTheDocument();
+    expect(getSessionDraft()).toMatchObject({
+      projectId: "/Users/void/Documents/study",
+      prompt: "",
+    });
   });
 
   it("places Project sessions in the primary sidebar", async () => {
@@ -134,8 +195,64 @@ describe("AppFrame", () => {
     expect(within(projectNavigation).queryByText(/Completed|Failed|Waiting/)).not.toBeInTheDocument();
   });
 
+  it("auto-expands the Project that owns an externally opened Session", async () => {
+    window.localStorage.setItem(
+      "pig.projectSidebar.expanded.v1",
+      JSON.stringify({ [pigProjectPath]: false }),
+    );
+
+    renderAppFrame("/projects/pig/sessions");
+
+    const projectNavigation = await screen.findByLabelText("Pig project sessions");
+
+    expect(
+      within(projectNavigation).getByRole("row", { name: "Agent Workspace shell" }),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("sidebar-projects")).getByRole("button", {
+        name: "Collapse Pig",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("lists registry Projects by addedAt and persists independent collapse state", async () => {
+    const user = userEvent.setup();
+
+    addProjectToRegistry(pigProjectPath, {
+      now: () => "2026-06-30T08:00:00.000Z",
+    });
+    addProjectToRegistry("/Users/void/Documents/study", {
+      now: () => "2026-06-30T09:00:00.000Z",
+    });
+
+    const firstRender = renderAppFrame("/projects/pig/sessions", { seedProjects: false });
+    const projectGroup = await screen.findByTestId("sidebar-projects");
+
+    expect(
+      within(projectGroup)
+        .getAllByRole("button", { name: /^Collapse / })
+        .map((button) => button.getAttribute("aria-label")),
+    ).toEqual(["Collapse study", "Collapse Pig"]);
+    expect(screen.getByLabelText("study project sessions")).toBeInTheDocument();
+    expect(screen.getByLabelText("Pig project sessions")).toBeInTheDocument();
+
+    await user.click(within(projectGroup).getByRole("button", { name: "Collapse study" }));
+
+    expect(within(projectGroup).getByRole("button", { name: "Expand study" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("study project sessions")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Pig project sessions")).toBeInTheDocument();
+    expect(screen.getByText("Main content")).toBeInTheDocument();
+
+    firstRender.unmount();
+    renderAppFrame("/projects/pig/sessions", { seedProjects: false });
+
+    expect(await screen.findByRole("button", { name: "Expand study" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("study project sessions")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Pig project sessions")).toBeInTheDocument();
+  });
+
   it("shows New Session and Project plus entry points with a lightweight draft indicator", async () => {
-    saveSessionDraft("pig", "Existing Project draft");
+    saveSessionDraft(pigProjectPath, "Existing Project draft");
 
     renderAppFrame("/projects/pig/sessions");
 
@@ -149,6 +266,59 @@ describe("AppFrame", () => {
     expect(within(projectNavigation).getByRole("row", { name: "New Session" })).toBeInTheDocument();
     expect(within(projectGroup).getAllByText("Draft")).toHaveLength(2);
     expect(within(projectNavigation).queryByText("Session Draft")).not.toBeInTheDocument();
+  });
+
+  it("shows Follow-up Draft indicators on Session rows and collapsed Projects", async () => {
+    const user = userEvent.setup();
+
+    saveFollowUpDraft("session-analyze-boundary", "Continue the trace review");
+
+    renderAppFrame("/projects/pig/sessions");
+
+    const projectGroup = await screen.findByTestId("sidebar-projects");
+    const projectNavigation = within(projectGroup).getByLabelText("Pig project sessions");
+    const sessionRow = within(projectNavigation).getByRole("row", {
+      name: "Trace boundary pass",
+    });
+
+    expect(within(sessionRow).getByText("Draft")).toBeInTheDocument();
+
+    await user.click(within(projectGroup).getByRole("button", { name: "Collapse Pig" }));
+
+    expect(within(projectGroup).getByText("Draft")).toBeInTheDocument();
+    expect(within(projectGroup).queryByLabelText("Pig project sessions")).not.toBeInTheDocument();
+  });
+
+  it("removes a Project from the sidebar after confirmation and clears only the draft target", async () => {
+    const user = userEvent.setup();
+
+    addProjectToRegistry(pigProjectPath, {
+      now: () => "2026-06-30T08:00:00.000Z",
+    });
+    addProjectToRegistry("/Users/void/Documents/study", {
+      now: () => "2026-06-30T09:00:00.000Z",
+    });
+    saveSessionDraft(pigProjectPath, "Keep this prompt");
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    renderAppFrame("/projects/pig/sessions", { seedProjects: false });
+    const projectGroup = await screen.findByTestId("sidebar-projects");
+
+    await user.click(within(projectGroup).getByRole("button", { name: "Project actions for Pig" }));
+    await user.click(within(projectGroup).getByRole("menuitem", { name: "Remove Project..." }));
+
+    expect(confirm).toHaveBeenCalledWith(
+      expect.stringContaining("Remove Pig from PiGUI?"),
+    );
+    expect(confirm).toHaveBeenCalledWith(
+      expect.stringContaining("Local files and historical Sessions will not be deleted."),
+    );
+    expect(within(projectGroup).queryByText("Pig")).not.toBeInTheDocument();
+    expect(within(projectGroup).getByText("study")).toBeInTheDocument();
+    expect(getSessionDraft()).toMatchObject({
+      projectId: null,
+      prompt: "Keep this prompt",
+    });
   });
 
   it("renders Trace and Usage as first-level sidebar menu items", async () => {
@@ -166,26 +336,26 @@ describe("AppFrame", () => {
     expect(screen.getByRole("heading", { level: 1, name: "Trace" })).toBeInTheDocument();
   });
 
-  it("orders Trace and Usage above a large Workspace area and pins Settings to the footer", async () => {
+  it("orders Trace and Usage above Projects and pins Settings to the footer", async () => {
     const { container } = renderAppFrame("/projects/pig/sessions");
 
     expect(await screen.findByText("Main content")).toBeInTheDocument();
     const sidebarContent = container.querySelector('[data-slot="sidebar-content"]');
     const sidebarFooter = container.querySelector('[data-slot="sidebar-footer"]');
     const traceUsageNavigation = screen.getByLabelText("Trace and usage navigation");
-    const workspaceGroup = screen.getByTestId("sidebar-workspace");
     const projectGroup = screen.getByTestId("sidebar-projects");
 
     expect(sidebarContent).toBeInTheDocument();
     expect(sidebarFooter).toBeInTheDocument();
     expect(sidebarContent).toHaveClass("flex-1", "min-h-0");
-    expect(workspaceGroup).toHaveClass("flex-1", "min-h-0", "overflow-y-auto");
-    expect(within(workspaceGroup).getByText("Workspace")).toBeInTheDocument();
+    expect(projectGroup).toHaveClass("flex-1", "min-h-0", "overflow-y-auto");
+    expect(within(projectGroup).getByText("Projects")).toBeInTheDocument();
+    expect(screen.queryByText("Workspace")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("sidebar-workspace")).not.toBeInTheDocument();
     expect(sidebarContent?.children[0]).toBe(
       traceUsageNavigation.closest('[data-slot="sidebar-group"]'),
     );
-    expect(sidebarContent?.children[1]).toBe(workspaceGroup);
-    expect(projectGroup).toBe(workspaceGroup.querySelector('[data-testid="sidebar-projects"]'));
+    expect(sidebarContent?.children[1]).toBe(projectGroup);
     expect(sidebarFooter).toHaveTextContent("Settings");
     expect(sidebarFooter).not.toHaveTextContent("Analyze");
     expect(sidebarContent).not.toHaveTextContent("Settings");
