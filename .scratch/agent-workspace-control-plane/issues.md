@@ -6,6 +6,8 @@ Created: 2026-06-25
 
 > 这些 issue 是给后续子 Agent 使用的本地实现 brief，与 PRD 一样以仓库内 markdown 为家（无外部 tracker）。每个 issue 都应当作为一个独立实现上下文处理：只携带 PRD、相关 ADR/CONTEXT 术语和当前 issue body。
 
+> 🗄️ 模型更新（2026-06-30）：Issue 2 中 Project-scoped Session Draft / 每个 Project 一份 draft 的旧模型已被 `.scratch/project-registry-and-drafts/PRD.md` 和 `docs/adr/0019-project-registry-and-draft-model.md` 取代。当前模型是全局唯一 Session Draft + per-session Follow-up Draft。
+
 ## Issue 1: 建立 Agent Workspace Session 壳与 Analyze 边界
 
 ## Parent

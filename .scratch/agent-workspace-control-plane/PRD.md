@@ -6,6 +6,8 @@ Created: 2026-06-25
 
 > 🗄️ 历史归档（更新于 2026-06-29）：本 PRD 的产品方向（Control Plane）仍然有效，但写于 Tauri 外壳时期。外壳此后迁至 Electron（见 [ADR-0013](../../docs/adr/0013-electron-shell-and-relocatable-backend.md)）；文中"Tauri runtime fallback"等测试/实现措辞按历史阅读，当前以 [CONTEXT.md](../../CONTEXT.md) 与 `docs/adr/` 为准。
 
+> 🗄️ 模型更新（2026-06-30）：文中 Project-scoped Session Draft / 每个 Project 一份 draft 的旧模型已被 [Project Registry、Project Sidebar 与 Draft 模型](../project-registry-and-drafts/PRD.md) 和 [ADR-0019](../../docs/adr/0019-project-registry-and-draft-model.md) 取代。当前模型是全局唯一 Session Draft + per-session Follow-up Draft。
+
 > 定位：PiGUI 从 Pi Session Trace 的被动飞行记录仪，升级为面向 Pi Runtime 的 Agent Workspace Control Plane。首版只支持 Pi Runtime，不做通用 agent host；核心是 Project 下的 Session Draft、Live Session View、Pi Runtime Bridge、Execution Checkout 和 Queue/Steer/Stop 交互。
 
 ---

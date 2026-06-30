@@ -17,6 +17,7 @@ import {
   AgentWorkspaceSessionsView,
   SessionActionsContent,
 } from "@/pages/agent-workspace";
+import { addProjectToRegistry } from "@/entities/project/project-registry";
 import { PiRuntimeBridgeError } from "@/entities/runtime/pi-runtime-bridge";
 import { createInMemoryPiRuntimeBridge } from "@/entities/runtime/in-memory-pi-runtime-bridge";
 import { createExecutionCheckoutManager } from "@/entities/checkout/execution-checkout";
@@ -25,9 +26,22 @@ import {
   createSessionFromDraft,
 } from "@/entities/session/session-creation";
 import { applySessionProjectionEvent, createSessionProjection } from "@/entities/session/session-projection";
+import { getFollowUpDraft, saveFollowUpDraft } from "@/entities/session/follow-up-drafts";
 import { getSessionDraft, saveSessionDraft } from "@/entities/session/session-drafts";
 
-function renderProjectSessions(path = "/projects/pig/sessions") {
+const pigProjectPath = "/Users/void/code/opensource/Pig";
+const studyProjectPath = "/Users/void/Documents/study";
+
+function renderProjectSessions(
+  path = "/projects/pig/sessions",
+  { seedProjects = true }: { seedProjects?: boolean } = {},
+) {
+  if (seedProjects) {
+    addProjectToRegistry(pigProjectPath, {
+      now: () => "2026-06-30T08:00:00.000Z",
+    });
+  }
+
   const rootRoute = createRootRoute({
     component: () => <Outlet />,
   });
@@ -143,6 +157,15 @@ describe("AgentWorkspaceSessionsPage", () => {
     expect(within(actionDialog).getByText("Checkout")).toBeInTheDocument();
     expect(within(actionDialog).getByText("gpt-5-codex")).toBeInTheDocument();
     expect(within(actionDialog).getByText("$0.042137")).toBeInTheDocument();
+  });
+
+  it("shows an empty Workspace state until a Project is added manually", async () => {
+    renderProjectSessions("/projects/pig/sessions", { seedProjects: false });
+
+    expect(await screen.findByTestId("empty-workspace-state")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "No Projects" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add Project" })).toBeInTheDocument();
+    expect(screen.queryByText("Agent Workspace shell")).not.toBeInTheDocument();
   });
 
   it("does not expose deferred terminal, file tree, or abort placeholders", async () => {
@@ -529,6 +552,7 @@ describe("AgentWorkspaceSessionsPage", () => {
     expect(
       within(liveChat).queryByText("After this, update the queue tests."),
     ).not.toBeInTheDocument();
+    expect(getFollowUpDraft("active-session")).toBeNull();
 
     await user.click(within(pendingQueue).getByRole("button", { name: "Withdraw queued message" }));
 
@@ -635,7 +659,71 @@ describe("AgentWorkspaceSessionsPage", () => {
     expect(
       await within(liveChat).findByText("Continue from the idle Session"),
     ).toBeInTheDocument();
+    expect(getFollowUpDraft("waiting-session")).toBeNull();
     expect(screen.queryByTestId("queued-message-list")).not.toBeInTheDocument();
+  });
+
+  it("restores a per-Session Follow-up Draft without showing a Project selector", async () => {
+    let projection = applySessionProjectionEvent(
+      createSessionProjection({
+        id: "waiting-session",
+        projectId: "pig-docs",
+        initialPrompt: "Review the first result",
+        createdAt: "2026-06-26T08:00:00.000Z",
+      }),
+      {
+        type: "runtime-bound",
+        stage: "starting runtime",
+        runtimeId: "runtime-waiting",
+        piSessionId: "pi-session-waiting",
+        occurredAt: "2026-06-26T08:00:01.000Z",
+      },
+    );
+
+    projection = applySessionProjectionEvent(projection, {
+      type: "runtime-state-resynced",
+      state: {
+        piSessionId: "pi-session-waiting",
+        runtimeId: "runtime-waiting",
+        projectId: "pig-docs",
+        cwd: "/Users/void/code/opensource/Pig/docs",
+        status: "idle",
+        events: projection.runtimeEvents,
+        updatedAt: "2026-06-26T08:00:03.000Z",
+      },
+    });
+    saveFollowUpDraft("waiting-session", "Resume from the saved composer");
+
+    render(
+      <AgentWorkspaceSessionsView
+        projectId="pig-docs"
+        sessionProjection={projection}
+        workspace={{
+          id: "pig-docs",
+          name: "Pig Docs",
+          projectRoot: "/Users/void/code/opensource/Pig/docs",
+          repoRoot: "/Users/void/code/opensource/Pig",
+          selectedSessionId: "waiting-session",
+          liveMessages: [],
+          runTimeline: [],
+          checkout: {
+            mode: "Foreground local checkout",
+            root: "/Users/void/code/opensource/Pig",
+            runtimeCwd: "/Users/void/code/opensource/Pig/docs",
+          },
+          summary: {
+            model: "gpt-5-codex",
+            totalCostUsd: 0,
+            totalTokens: 0,
+          },
+        }}
+      />,
+    );
+
+    expect(await screen.findByPlaceholderText("What do you want to know?")).toHaveValue(
+      "Resume from the saved composer",
+    );
+    expect(screen.queryByLabelText("Target Project")).not.toBeInTheDocument();
   });
 
   it("steers an active run as a Live Chat control event instead of a queued message", async () => {
@@ -806,6 +894,7 @@ describe("AgentWorkspaceSessionsPage", () => {
 
     expect(await screen.findByText("Pi rejected steer input.")).toBeInTheDocument();
     expect(input).toHaveValue("Keep this steer text");
+    expect(getFollowUpDraft("active-session")?.message).toBe("Keep this steer text");
   });
 
   it("opens a Project-scoped Session Draft from New Session without adding a session row", async () => {
@@ -924,6 +1013,171 @@ describe("AgentWorkspaceSessionsPage", () => {
     expect(screen.queryByTestId("session-draft-composer")).not.toBeInTheDocument();
     expect(screen.getAllByText("Summarize the docs ADR").length).toBeGreaterThan(0);
     expect(screen.getByLabelText("Live Chat messages")).toBeInTheDocument();
+  });
+
+  it("retargets the global Session Draft from the composer without clearing text", async () => {
+    const user = userEvent.setup();
+
+    addProjectToRegistry(pigProjectPath, {
+      now: () => "2026-06-30T08:00:00.000Z",
+    });
+    addProjectToRegistry(studyProjectPath, {
+      now: () => "2026-06-30T09:00:00.000Z",
+    });
+    saveSessionDraft(pigProjectPath, "Keep this prompt while switching target");
+    render(
+      <AgentWorkspaceSessionsView
+        projectId={pigProjectPath}
+        showDraft
+        workspace={{
+          id: pigProjectPath,
+          name: "Pig",
+          projectRoot: pigProjectPath,
+          repoRoot: pigProjectPath,
+          selectedSessionId: "session-docs-review",
+          liveMessages: [],
+          runTimeline: [],
+          checkout: {
+            mode: "Foreground local checkout",
+            root: pigProjectPath,
+            runtimeCwd: pigProjectPath,
+          },
+          summary: {
+            model: "gpt-5-codex",
+            totalCostUsd: 0,
+            totalTokens: 0,
+          },
+        }}
+      />,
+    );
+
+    const promptInput = await screen.findByPlaceholderText("Describe the first Pi prompt");
+    const projectSelector = screen.getByLabelText("Target Project");
+
+    expect(promptInput).toHaveValue("Keep this prompt while switching target");
+    expect(projectSelector).toHaveValue(pigProjectPath);
+
+    await user.selectOptions(projectSelector, studyProjectPath);
+
+    expect(promptInput).toHaveValue("Keep this prompt while switching target");
+    expect(getSessionDraft()).toMatchObject({
+      projectId: studyProjectPath,
+      prompt: "Keep this prompt while switching target",
+    });
+  });
+
+  it("submits registry Project drafts without inventing a repoRoot", async () => {
+    const user = userEvent.setup();
+    type CapturedProject = {
+      id: string;
+      repoRoot?: string;
+      projectRoot: string;
+    };
+    let capturedProject: CapturedProject | null = null;
+
+    addProjectToRegistry(studyProjectPath, {
+      now: () => "2026-06-30T09:00:00.000Z",
+    });
+    saveSessionDraft(studyProjectPath, "Run notes outside Git");
+    render(
+      <AgentWorkspaceSessionsView
+        projectId={studyProjectPath}
+        showDraft
+        workspace={{
+          id: studyProjectPath,
+          name: "study",
+          projectRoot: studyProjectPath,
+          repoRoot: studyProjectPath,
+          selectedSessionId: "session-study-review",
+          liveMessages: [],
+          runTimeline: [],
+          checkout: {
+            mode: "Foreground local checkout",
+            root: studyProjectPath,
+            runtimeCwd: studyProjectPath,
+          },
+          summary: {
+            model: "gpt-5-codex",
+            totalCostUsd: 0,
+            totalTokens: 0,
+          },
+        }}
+        sessionCreator={async (input) => {
+          capturedProject = input.project;
+
+          return {
+            ok: false,
+            clearDraft: false,
+            projection: createSessionProjection({
+              id: "session-study-created",
+              projectId: input.project.id,
+              initialPrompt: input.draft.prompt,
+              createdAt: "2026-06-30T08:00:00.000Z",
+            }),
+          };
+        }}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Submit initial prompt" }));
+
+    await waitFor(() => {
+      expect(capturedProject).toMatchObject({
+        id: studyProjectPath,
+        projectRoot: studyProjectPath,
+      });
+    });
+    expect((capturedProject as CapturedProject | null)?.repoRoot).toBeUndefined();
+  });
+
+  it("blocks Session Draft submit when the restored target Project is missing", async () => {
+    const user = userEvent.setup();
+    const onDraftSubmit = vi.fn();
+
+    addProjectToRegistry(pigProjectPath, {
+      now: () => "2026-06-30T08:00:00.000Z",
+    });
+    saveSessionDraft("/Users/void/DeletedProject", "Keep text after target removal");
+    render(
+      <AgentWorkspaceSessionsView
+        projectId={pigProjectPath}
+        showDraft
+        workspace={{
+          id: pigProjectPath,
+          name: "Pig",
+          projectRoot: pigProjectPath,
+          repoRoot: pigProjectPath,
+          selectedSessionId: "session-docs-review",
+          liveMessages: [],
+          runTimeline: [],
+          checkout: {
+            mode: "Foreground local checkout",
+            root: pigProjectPath,
+            runtimeCwd: pigProjectPath,
+          },
+          summary: {
+            model: "gpt-5-codex",
+            totalCostUsd: 0,
+            totalTokens: 0,
+          },
+        }}
+        onDraftSubmit={onDraftSubmit}
+      />,
+    );
+
+    expect(await screen.findByPlaceholderText("Describe the first Pi prompt")).toHaveValue(
+      "Keep text after target removal",
+    );
+    expect(screen.getByLabelText("Target Project")).toHaveValue("");
+
+    await user.click(screen.getByRole("button", { name: "Submit initial prompt" }));
+
+    expect(onDraftSubmit).not.toHaveBeenCalled();
+    expect(screen.getByText("Select a Project before submitting.")).toBeInTheDocument();
+    expect(getSessionDraft()).toMatchObject({
+      projectId: null,
+      prompt: "Keep text after target removal",
+    });
   });
 
   it("queues follow-up input after creating a default active Session", async () => {
@@ -1302,5 +1556,58 @@ describe("AgentWorkspaceSessionsPage", () => {
         "/Users/void/code/opensource/Pig/packages/web",
       ),
     ).not.toBeVisible();
+  });
+
+  it("shows a clear non-Git state in the action surface", () => {
+    const workspace = {
+      id: "notes",
+      name: "Notes",
+      projectRoot: "/Users/void/Documents/notes-without-git",
+      repoRoot: "/Users/void/Documents/notes-without-git",
+      selectedSessionId: "session-notes",
+      liveMessages: [],
+      runTimeline: [],
+      checkout: {
+        mode: "Foreground local checkout",
+        root: "/Users/void/Documents/notes-without-git",
+        runtimeCwd: "/Users/void/Documents/notes-without-git",
+      },
+      summary: {
+        model: "gpt-5-codex",
+        totalCostUsd: 0,
+        totalTokens: 0,
+      },
+    };
+    const projection = applySessionProjectionEvent(
+      createSessionProjection({
+        id: "session-notes",
+        projectId: "notes",
+        initialPrompt: "Run in notes",
+        createdAt: "2026-06-30T08:00:00.000Z",
+      }),
+      {
+        type: "checkout-selected",
+        stage: "preparing checkout",
+        checkout: {
+          mode: "foreground-local",
+          root: "/Users/void/Documents/notes-without-git",
+          projectRoot: "/Users/void/Documents/notes-without-git",
+          projectRelativePath: ".",
+          executionCheckoutRoot: "/Users/void/Documents/notes-without-git",
+          runtimeCwd: "/Users/void/Documents/notes-without-git",
+          sessionBound: false,
+          disposable: false,
+          cleanupCandidate: false,
+          permanent: true,
+          createdAt: "2026-06-30T08:00:00.000Z",
+        },
+        occurredAt: "2026-06-30T08:00:00.000Z",
+      },
+    );
+
+    render(<SessionActionsContent workspace={workspace} projection={projection} />);
+
+    expect(screen.getByText("No Git repository")).toBeInTheDocument();
+    expect(screen.getByText("Git-only actions are unavailable for this Project.")).toBeInTheDocument();
   });
 });

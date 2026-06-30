@@ -139,6 +139,107 @@ describe("Execution Checkout manager", () => {
     });
   });
 
+  it("uses the Project directory as foreground checkout for non-Git Projects", async () => {
+    const manager = createExecutionCheckoutManager();
+
+    const checkout = await manager.prepareCheckout({
+      sessionId: "session-notes",
+      strategy: "background-managed",
+      project: {
+        id: "notes",
+        projectRoot: "/Users/void/Documents/notes-without-git",
+      },
+      now: () => "2026-06-30T08:00:00.000Z",
+    });
+
+    expect(checkout).toMatchObject({
+      mode: "foreground-local",
+      root: "/Users/void/Documents/notes-without-git",
+      projectRoot: "/Users/void/Documents/notes-without-git",
+      projectRelativePath: ".",
+      executionCheckoutRoot: "/Users/void/Documents/notes-without-git",
+      runtimeCwd: "/Users/void/Documents/notes-without-git",
+      sessionBound: false,
+      disposable: false,
+      permanent: true,
+    });
+    expect(checkout.repoRoot).toBeUndefined();
+    expect(checkout.diffRoot).toBeUndefined();
+  });
+
+  it("detects a Git repo from the Project directory when no repoRoot is supplied", async () => {
+    const fixture = await createMonorepoFixture();
+    const manager = createExecutionCheckoutManager({
+      worktreesRoot: fixture.worktreesRoot,
+      gitClient: {
+        async isGitRepository(repoRoot) {
+          await git(repoRoot, ["rev-parse", "--show-toplevel"]);
+
+          return true;
+        },
+        async addDetachedWorktree({ repoRoot, checkoutRoot }) {
+          await mkdir(dirname(checkoutRoot), { recursive: true });
+          await git(repoRoot, ["worktree", "add", "--detach", checkoutRoot, "HEAD"]);
+        },
+      },
+    });
+
+    const checkout = await manager.prepareCheckout({
+      sessionId: "session-registry-root",
+      strategy: "background-managed",
+      project: {
+        id: "repo",
+        projectRoot: fixture.repoRoot,
+      },
+      now: () => "2026-06-30T08:00:00.000Z",
+    });
+
+    expect(checkout).toMatchObject({
+      mode: "managed-worktree",
+      root: join(fixture.worktreesRoot, "session-registry-root"),
+      repoRoot: fixture.repoRoot,
+      projectRoot: fixture.repoRoot,
+      projectRelativePath: ".",
+      runtimeCwd: join(fixture.worktreesRoot, "session-registry-root"),
+    });
+  });
+
+  it("clears an explicit repoRoot when Git validation rejects the directory", async () => {
+    const manager = createExecutionCheckoutManager({
+      gitClient: {
+        async isGitRepository() {
+          return false;
+        },
+        async addDetachedWorktree() {
+          throw new Error("Should not create a worktree for non-Git Projects.");
+        },
+      },
+    });
+
+    const checkout = await manager.prepareCheckout({
+      sessionId: "session-notes",
+      strategy: "background-managed",
+      project: {
+        id: "notes",
+        repoRoot: "/Users/void/Documents/notes-without-git",
+        projectRoot: "/Users/void/Documents/notes-without-git",
+      },
+      now: () => "2026-06-30T08:00:00.000Z",
+    });
+
+    expect(checkout).toMatchObject({
+      mode: "foreground-local",
+      root: "/Users/void/Documents/notes-without-git",
+      projectRoot: "/Users/void/Documents/notes-without-git",
+      projectRelativePath: ".",
+      runtimeCwd: "/Users/void/Documents/notes-without-git",
+      sessionBound: false,
+      permanent: true,
+    });
+    expect(checkout.repoRoot).toBeUndefined();
+    expect(checkout.diffRoot).toBeUndefined();
+  });
+
   it("retains managed worktrees after completion and only marks disposable ones as cleanup candidates", async () => {
     const fixture = await createMonorepoFixture();
     const manager = createExecutionCheckoutManager({

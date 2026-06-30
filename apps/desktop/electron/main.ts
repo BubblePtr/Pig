@@ -1,6 +1,7 @@
 import {
   app,
   BrowserWindow,
+  dialog,
   ipcMain,
   MessageChannelMain,
   type MessagePortMain,
@@ -135,10 +136,34 @@ function invokeBackend(command: string, args?: Record<string, unknown>) {
   });
 }
 
+async function selectProjectDirectory() {
+  const owner = mainWindow ?? BrowserWindow.getFocusedWindow();
+  const result = owner
+    ? await dialog.showOpenDialog(owner, {
+        title: "Select Project",
+        properties: ["openDirectory"],
+      })
+    : await dialog.showOpenDialog({
+        title: "Select Project",
+        properties: ["openDirectory"],
+      });
+
+  if (result.canceled) {
+    return null;
+  }
+
+  return result.filePaths[0] ?? null;
+}
+
 ipcMain.handle(
   "pig:invoke",
-  (_event, input: { command: string; args?: Record<string, unknown> }) =>
-    invokeBackend(input.command, input.args),
+  (_event, input: { command: string; args?: Record<string, unknown> }) => {
+    if (input.command === "select_project_directory") {
+      return selectProjectDirectory();
+    }
+
+    return invokeBackend(input.command, input.args);
+  },
 );
 
 app.whenReady().then(() => {

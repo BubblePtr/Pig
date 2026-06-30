@@ -13,6 +13,11 @@ import {
   type ExecutionCheckoutManager,
 } from "@/entities/checkout/execution-checkout";
 import { createInvokeExecutionCheckoutGitClient } from "@/entities/checkout/execution-checkout-client";
+import {
+  getProjectRegistry,
+  subscribeProjectRegistry,
+  type ProjectRegistryEntry,
+} from "@/entities/project/project-registry";
 import { createDefaultPiRuntimeBridge } from "@/entities/runtime/pi-runtime-factory";
 import type { PiRuntimeBridge, PiSessionState } from "@/entities/runtime/pi-runtime-bridge";
 import {
@@ -22,9 +27,15 @@ import {
   type CreateSessionFromDraftResult,
 } from "@/entities/session/session-creation";
 import {
+  clearFollowUpDraft,
+  getFollowUpDraft,
+  saveFollowUpDraft,
+} from "@/entities/session/follow-up-drafts";
+import {
   clearSessionDraft,
   getSessionDraft,
   saveSessionDraft,
+  setSessionDraftTarget,
   subscribeSessionDrafts,
   type SessionDraft,
 } from "@/entities/session/session-drafts";
@@ -261,7 +272,10 @@ function FullChatComposer({
   onStopRun?: () => Promise<void> | void;
   onSteerSubmit?: (message: string) => Promise<void> | void;
 }) {
-  const [draft, setDraft] = useState("");
+  const sessionId = projection?.id ?? null;
+  const [draft, setDraft] = useState(() =>
+    sessionId ? getFollowUpDraft(sessionId)?.message ?? "" : "",
+  );
   const [composerError, setComposerError] = useState<string | null>(null);
   const isStopAction = queueMode && !draft.trim();
   const promptStatus = isStoppingRun
@@ -273,6 +287,32 @@ function FullChatComposer({
         : "ready";
   const errorMessage = (error: unknown) =>
     error instanceof Error ? error.message : "Pi could not process this input.";
+  const updateDraft = (message: string) => {
+    setDraft(message);
+
+    if (!sessionId) {
+      return;
+    }
+
+    if (message.trim()) {
+      saveFollowUpDraft(sessionId, message);
+    } else {
+      clearFollowUpDraft(sessionId);
+    }
+  };
+  const clearSubmittedDraft = () => {
+    setDraft("");
+
+    if (sessionId) {
+      clearFollowUpDraft(sessionId);
+    }
+  };
+
+  useEffect(() => {
+    setDraft(sessionId ? getFollowUpDraft(sessionId)?.message ?? "" : "");
+    setComposerError(null);
+  }, [sessionId]);
+
   const submitDraft = async () => {
     const message = draft.trim();
 
@@ -284,7 +324,7 @@ function FullChatComposer({
       try {
         await onQueueSubmit?.(message);
         setComposerError(null);
-        setDraft("");
+        clearSubmittedDraft();
       } catch (error) {
         setComposerError(errorMessage(error));
       }
@@ -295,7 +335,7 @@ function FullChatComposer({
     try {
       await onPromptSubmit?.(message);
       setComposerError(null);
-      setDraft("");
+      clearSubmittedDraft();
     } catch (error) {
       setComposerError(errorMessage(error));
     }
@@ -310,7 +350,7 @@ function FullChatComposer({
     try {
       await onSteerSubmit?.(message);
       setComposerError(null);
-      setDraft("");
+      clearSubmittedDraft();
     } catch (error) {
       setComposerError(errorMessage(error));
     }
@@ -338,7 +378,7 @@ function FullChatComposer({
         variant="primary"
         onStop={onStopRun ? () => void onStopRun() : undefined}
         onSubmit={submitDraft}
-        onValueChange={setDraft}
+        onValueChange={updateDraft}
       >
         <PromptInput.Shell>
           <PromptInput.Content>
@@ -447,19 +487,29 @@ function isReadOnlyProjection(projection: SessionProjection | null) {
 
 function SessionDraftComposer({
   draft,
+  projects,
   creationProjection,
   onDraftChange,
+  onDraftTargetChange,
   onDraftSubmit,
 }: {
   draft: SessionDraft;
+  projects: ProjectRegistryEntry[];
   creationProjection: SessionProjection | null;
   onDraftChange: (prompt: string) => void;
+  onDraftTargetChange: (projectId: string | null) => void;
   onDraftSubmit: (event: SessionDraftSubmitEvent) => void;
 }) {
+  const [targetError, setTargetError] = useState(false);
   const submitDraft = () => {
     const prompt = draft.prompt.trim();
 
     if (!prompt) {
+      return;
+    }
+
+    if (!draft.projectId) {
+      setTargetError(true);
       return;
     }
 
@@ -475,6 +525,33 @@ function SessionDraftComposer({
         <h2 className="mb-3 text-sm font-semibold text-foreground">
           Session Draft
         </h2>
+        <div className="mb-3 flex items-center gap-2">
+          <label className="text-sm font-medium text-muted" htmlFor="session-draft-project">
+            Target Project
+          </label>
+          <select
+            aria-label="Target Project"
+            className="h-8 min-w-0 rounded-md border border-default bg-surface px-2 text-sm text-foreground outline-none focus-visible:border-primary"
+            id="session-draft-project"
+            value={draft.projectId ?? ""}
+            onChange={(event) => {
+              setTargetError(false);
+              onDraftTargetChange(event.currentTarget.value || null);
+            }}
+          >
+            <option value="">Select Project</option>
+            {projects.map((project) => (
+              <option key={project.id} value={project.id}>
+                {project.displayName}
+              </option>
+            ))}
+          </select>
+        </div>
+        {targetError ? (
+          <p className="mb-3 text-sm text-danger">
+            Select a Project before submitting.
+          </p>
+        ) : null}
         {creationProjection ? (
           <div
             aria-live="polite"
@@ -589,9 +666,21 @@ export function SessionActionsContent({
   const archiveAllowed = projection
     ? canArchiveSessionProjection(projection)
     : true;
+  const hasGitRepository = Boolean(checkout.repoRoot);
 
   return (
     <div className="grid gap-5">
+      {!hasGitRepository ? (
+        <section className="rounded-md border border-default/70 bg-surface px-3 py-2">
+          <h3 className="text-sm font-semibold text-foreground">
+            No Git repository
+          </h3>
+          <p className="mt-2 text-sm leading-6 text-muted">
+            Git-only actions are unavailable for this Project.
+          </p>
+        </section>
+      ) : null}
+
       <section>
         <h3 className="text-sm font-semibold text-foreground">Diff summary</h3>
         <p className="mt-2 text-sm leading-6 text-muted">
@@ -895,8 +984,19 @@ function LiveSessionColumn({
   onProjectionChange?: (projection: SessionProjection) => void;
   onLatestMessageRendered?: (sessionId: string) => void;
 }) {
+  const [registryProjects, setRegistryProjects] = useState(() => getProjectRegistry());
+  const fallbackProject: ProjectRegistryEntry = {
+    id: projectId,
+    path: workspace.projectRoot,
+    displayName: workspace.name,
+    addedAt: "1970-01-01T00:00:00.000Z",
+  };
+  const usingRegistryProjects = registryProjects.length > 0;
+  const projects = usingRegistryProjects ? registryProjects : [fallbackProject];
+  const projectIds = projects.map((project) => project.id);
+  const projectIdsKey = projectIds.join("\n");
   const [sessionDraft, setSessionDraft] = useState<SessionDraft | null>(() =>
-    getSessionDraft(projectId),
+    getSessionDraft({ projectIds }),
   );
   const [creationProjection, setCreationProjection] =
     useState<SessionProjection | null>(null);
@@ -904,15 +1004,17 @@ function LiveSessionColumn({
     useState<SessionProjection | null>(null);
   const [stoppingRun, setStoppingRun] = useState(false);
 
+  useEffect(() => subscribeProjectRegistry(() => setRegistryProjects(getProjectRegistry())), []);
+
   useEffect(() => {
-    setSessionDraft(getSessionDraft(projectId));
+    setSessionDraft(getSessionDraft({ projectIds }));
     setCreationProjection(null);
     setInteractionProjection(null);
 
     return subscribeSessionDrafts(() => {
-      setSessionDraft(getSessionDraft(projectId));
+      setSessionDraft(getSessionDraft({ projectIds }));
     });
-  }, [projectId]);
+  }, [projectId, projectIdsKey]);
 
   useEffect(() => {
     setInteractionProjection(null);
@@ -944,23 +1046,35 @@ function LiveSessionColumn({
   ]);
 
   const handleDraftChange = (prompt: string) => {
-    setSessionDraft(saveSessionDraft(projectId, prompt));
+    setSessionDraft(saveSessionDraft(sessionDraft?.projectId ?? null, prompt));
+  };
+  const handleDraftTargetChange = (targetProjectId: string | null) => {
+    setSessionDraft(setSessionDraftTarget(targetProjectId));
   };
   const handleDraftSubmit = async (event: SessionDraftSubmitEvent) => {
-    const draft = getSessionDraft(projectId);
+    const draft = getSessionDraft({ projectIds });
 
-    if (!draft) {
+    if (!draft?.projectId) {
+      return;
+    }
+
+    const targetProject = projects.find((project) => project.id === draft.projectId);
+
+    if (!targetProject) {
       return;
     }
 
     onDraftSubmit(event);
 
+    const targetProjectRoot = usingRegistryProjects ? targetProject.path : workspace.projectRoot;
+    const targetRepoRoot = usingRegistryProjects ? undefined : workspace.repoRoot;
+
     const result = await sessionCreator({
       draft,
       project: {
-        id: workspace.id,
-        repoRoot: workspace.repoRoot,
-        projectRoot: workspace.projectRoot,
+        id: targetProject.id,
+        repoRoot: targetRepoRoot,
+        projectRoot: targetProjectRoot,
       },
       onProjectionChange: (projection) => {
         setCreationProjection(projection);
@@ -972,7 +1086,7 @@ function LiveSessionColumn({
     onProjectionChange?.(result.projection);
 
     if (result.clearDraft) {
-      clearSessionDraft(projectId);
+      clearSessionDraft(draft.projectId);
       setSessionDraft(null);
     }
   };
@@ -1125,8 +1239,10 @@ function LiveSessionColumn({
       {showDraft && sessionDraft ? (
         <SessionDraftComposer
           draft={sessionDraft}
+          projects={projects}
           creationProjection={creationProjection}
           onDraftChange={handleDraftChange}
+          onDraftTargetChange={handleDraftTargetChange}
           onDraftSubmit={(event) => void handleDraftSubmit(event)}
         />
       ) : (
@@ -1272,6 +1388,7 @@ export function AgentWorkspaceSessionsPage() {
     },
   });
   const workspace = fixtureWorkspace;
+  const [registryProjects, setRegistryProjects] = useState(() => getProjectRegistry());
   const [runtimeBridge] = useState(() => createDefaultPiRuntimeBridge());
   const [sessionProjections, setSessionProjections] = useState(
     defaultSidebarProjectSessionProjections,
@@ -1285,6 +1402,9 @@ export function AgentWorkspaceSessionsPage() {
     sessionProjections.find(
       (projection) => projection.id === selectedSessionId,
     ) ?? null;
+
+  useEffect(() => subscribeProjectRegistry(() => setRegistryProjects(getProjectRegistry())), []);
+
   const handleProjectionChange = (nextProjection: SessionProjection) => {
     setSelectedSessionId(nextProjection.id);
     setSessionProjections((projections) => {
@@ -1313,6 +1433,26 @@ export function AgentWorkspaceSessionsPage() {
       ),
     );
   };
+
+  if (registryProjects.length === 0) {
+    return (
+      <AppFrame
+        sessionProjections={[]}
+        selectedSessionId={null}
+        onSelectedSessionIdChange={setSelectedSessionId}
+      >
+        <section
+          className="flex h-full min-h-0 min-w-0 flex-col items-center justify-center px-6 text-center"
+          data-testid="empty-workspace-state"
+        >
+          <h2 className="text-lg font-semibold text-foreground">No Projects</h2>
+          <p className="mt-2 max-w-sm text-sm leading-6 text-muted">
+            Add a Project to start a Session.
+          </p>
+        </section>
+      </AppFrame>
+    );
+  }
 
   return (
     <AppFrame
