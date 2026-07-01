@@ -77,7 +77,9 @@ PiGUI 的安全边界分层处理：
 - `packages/backend` 拥有 `PiRuntimeDriver` 和 runtime orchestrator；driver 负责 SDK/RPC 细节，orchestrator 负责 Session Projection 同步、event envelope、sequence、恢复、错误归因和审计。
 - `apps/desktop` 当前 MessagePort transport 保持可用；未来 `apps/server` 可以实现 WebSocket transport，但业务协议不变。
 - 现有 RPC bridge 是可保留的实现资产，但它需要被下沉为 `PiRpcProcessDriver`，而不是继续定义前端-facing API。
-- SDK driver 必须先用 spike 验证当前能力面：prompt、Queue、Steer、Stop、事件归一化、session switch/fork/clone、model/thinking、compaction、usage/cost、extension UI request、cwd/resource loading、auth/model registry、错误和崩溃恢复。
+- SDK driver 已完成 backend-only spike，并进入 Electron backend 的默认 Runtime Gateway driver。`createBackendService()` 默认组装 `PiSdkDriver` + public Pi SDK `AgentSession` adapter；renderer、Electron IPC 和 Runtime Gateway API 不变。真实 Pi SDK / 模型调用仍不进入常规测试默认路径，测试通过 SDK 边界 mock 或 opt-in spike harness 验证；RPC transport 继续保留给 `start_pi_rpc_runtime` / `send_pi_rpc_command` / `stop_pi_rpc_runtime` 以及显式注入的 fallback driver。SDK 原始 state/event 只作为证据来源；如果 SDK 能力存在但不能稳定映射到 Gateway envelope、event order、message identity、session identity 或 snapshot 字段，应记录为 capability 缺口，而不是临时污染 Gateway contract。
+- SDK spike 不修复 Live Chat 重复消息问题，不修改 Projection 去重策略，也不修改 `PiRpcProcessDriver`。spike 只记录 SDK 是否提供稳定 message id、turn id、event phase、final/delta 信号和可映射的 event identity；这些证据用于后续单独设计 Gateway/Projection 的 message identity 与去重规则。
+- 第二轮 SDK capability spike 已补齐 backend Gateway 映射检查：Queue/Steer/Stop、model/thinking、resource/auth 注入、retry/compaction/error 事件都先落在 SDK adapter 和 driver contract tests；真实 opt-in run 已确认 `usage/cost` 可进入 Runtime Gateway snapshot summary。仍不能把 SDK public API 直接等同于产品能力：Queue withdraw 没有稳定 SDK queued id，Steer/Stop 的长流语义尚未 opt-in 验证，Extension UI request 还缺 Runtime Gateway 协议，SDK crash/restart 也不是 RPC subprocess recovery 的同一问题。
 - 测试体系要分层：Gateway protocol 契约测试、FakePiRuntime 状态机测试、SDK/RPC driver 兼容测试、以及固定 Pi 版本线的集成冒烟。
 
 ## Supersedes

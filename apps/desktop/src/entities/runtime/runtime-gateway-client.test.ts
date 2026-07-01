@@ -2,11 +2,11 @@ import type { RuntimeGatewayEventEnvelope, RuntimeGatewaySnapshot } from "@pigui
 import type { BackendRpcEvent } from "@pigui/backend";
 import { describe, expect, it, vi } from "vitest";
 import {
-  createPiRuntimeGatewayBridge,
-  type PiRuntimeGatewayBridgeOptions,
-} from "@/entities/runtime/gateway-runtime-bridge";
+  createRuntimeGatewayClient,
+  type RuntimeGatewayClientOptions,
+} from "@/entities/runtime/runtime-gateway-client";
 
-describe("Pi Runtime Gateway Bridge", () => {
+describe("Runtime Gateway client", () => {
   it("delegates Electron runtime calls to Gateway methods and suppresses command echo events", async () => {
     const invocations: Array<{ command: string; args?: Record<string, unknown> }> = [];
     const eventHandlers: Array<(event: BackendRpcEvent) => void> = [];
@@ -44,7 +44,7 @@ describe("Pi Runtime Gateway Bridge", () => {
       },
       updatedAt: "2026-06-29T12:00:00.000Z",
     };
-    const invoke: PiRuntimeGatewayBridgeOptions["invoke"] = async <T,>(
+    const invoke: RuntimeGatewayClientOptions["invoke"] = async <T,>(
       command: string,
       args?: Record<string, unknown>,
     ) => {
@@ -62,13 +62,13 @@ describe("Pi Runtime Gateway Bridge", () => {
 
       throw new Error(`unexpected command ${command}`);
     };
-    const bridge = createPiRuntimeGatewayBridge({
+    const client = createRuntimeGatewayClient({
       invoke,
       onBackendEvent,
       now: () => "2026-06-29T12:00:02.000Z",
     });
 
-    const runtime = await bridge.startRuntime({
+    const runtime = await client.startRuntime({
       sessionId: "session-1",
       projectId: "pig",
       checkout: {
@@ -77,17 +77,17 @@ describe("Pi Runtime Gateway Bridge", () => {
         runtimeCwd: "/Users/void/code/opensource/Pig",
       },
     });
-    const state = await bridge.createPiSessionState({
+    const state = await client.createPiSessionState({
       runtimeId: runtime.runtimeId,
       projectId: "pig",
       cwd: "/Users/void/code/opensource/Pig",
     });
     const observedEvents: unknown[] = [];
 
-    bridge.subscribeToEvents(state.piSessionId, (event) => {
+    client.subscribeToEvents(state.piSessionId, (event) => {
       observedEvents.push(event);
     });
-    const accepted = await bridge.sendInitialPrompt({
+    const accepted = await client.sendInitialPrompt({
       piSessionId: state.piSessionId,
       prompt: "Create the Gateway bridge",
     });
@@ -161,7 +161,7 @@ describe("Pi Runtime Gateway Bridge", () => {
         body: "Gateway bridge is ready.",
       }),
     ]);
-    await expect(bridge.getSessionState("pi-session-1")).resolves.toMatchObject({
+    await expect(client.getSessionState("pi-session-1")).resolves.toMatchObject({
       events: [
         expect.objectContaining({ id: "evt-user" }),
         expect.objectContaining({ id: "evt-assistant" }),

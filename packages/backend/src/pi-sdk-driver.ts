@@ -31,6 +31,7 @@ export type PiSdkSessionRuntime = {
   stopRun?(): Promise<void>;
   getSnapshot?(): Promise<PiSdkSnapshotPatch>;
   onEvent?(listener: (event: PiSdkRuntimeEvent) => void): () => void;
+  dispose?(): void | Promise<void>;
 };
 
 export type PiSdkRuntimeFactory = (
@@ -54,6 +55,10 @@ export class PiSdkDriverUnsupportedError extends Error {
 
 function unsupported(capability: string, detail: string): never {
   throw new PiSdkDriverUnsupportedError(capability, detail);
+}
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function cloneSummary(summary: RuntimeGatewaySummary): RuntimeGatewaySummary {
@@ -125,6 +130,7 @@ export function createPiSdkDriver(options: PiSdkDriverOptions = {}): PiRuntimeDr
   const now = options.now ?? (() => new Date().toISOString());
   const runtimes = new Map<string, PiSdkSessionRuntime>();
   const snapshots = new Map<string, RuntimeGatewaySnapshot>();
+  const promptCounts = new Map<string, number>();
   const listeners = new Set<(event: RuntimeGatewayDriverEvent) => void>();
 
   const runtimeFor = (piSessionId: string, capability: string) => {
@@ -153,6 +159,7 @@ export function createPiSdkDriver(options: PiSdkDriverOptions = {}): PiRuntimeDr
 
       runtimes.set(runtime.piSessionId, runtime);
       snapshots.set(runtime.piSessionId, snapshot);
+      promptCounts.set(runtime.piSessionId, 0);
       runtime.onEvent?.((event) => {
         emit({
           ...event,
@@ -165,8 +172,24 @@ export function createPiSdkDriver(options: PiSdkDriverOptions = {}): PiRuntimeDr
 
     async sendPrompt(input) {
       const runtime = runtimeFor(input.piSessionId, "send_prompt");
+      const promptIndex = promptCounts.get(input.piSessionId) ?? 0;
 
-      await runtime.sendPrompt(input.prompt);
+      promptCounts.set(input.piSessionId, promptIndex + 1);
+      void (async () => {
+        try {
+          await runtime.sendPrompt(input.prompt);
+        } catch (error) {
+          emit({
+            piSessionId: input.piSessionId,
+            type: "status",
+            payload: {
+              kind: "status",
+              title: "SDK prompt failed",
+              body: errorMessage(error),
+            },
+          });
+        }
+      })();
 
       return {
         piSessionId: input.piSessionId,
@@ -175,6 +198,9 @@ export function createPiSdkDriver(options: PiSdkDriverOptions = {}): PiRuntimeDr
           kind: "message",
           role: "user",
           body: input.prompt,
+          bodyFormat: "full",
+          messageId: `pi-sdk:${input.piSessionId}:user:${promptIndex}`,
+          phase: "synthetic",
         },
       };
     },

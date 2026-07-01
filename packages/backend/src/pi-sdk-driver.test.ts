@@ -99,6 +99,9 @@ describe("Pi SDK driver", () => {
         kind: "message",
         role: "user",
         body: "Build through SDK",
+        bodyFormat: "full",
+        messageId: "pi-sdk:pi-sdk-session-1:user:0",
+        phase: "synthetic",
       },
     });
 
@@ -142,6 +145,125 @@ describe("Pi SDK driver", () => {
         },
       },
     ]);
+  });
+
+  it("returns the synthetic user message before the SDK prompt finishes", async () => {
+    let resolvePrompt: (() => void) | undefined;
+    const driver = createPiSdkDriver({
+      runtimeFactory: async () => ({
+        piSessionId: "pi-sdk-session-1",
+        sendPrompt: vi.fn(
+          () =>
+            new Promise<void>((resolve) => {
+              resolvePrompt = resolve;
+            }),
+        ),
+      }),
+    });
+
+    await driver.createSession({
+      sessionId: "session-1",
+      projectId: "pig",
+      cwd: "/Users/void/code/opensource/Pig",
+    });
+
+    const response = driver.sendPrompt({
+      piSessionId: "pi-sdk-session-1",
+      prompt: "Build through SDK",
+    });
+
+    try {
+      await expect(
+        Promise.race([
+          response,
+          new Promise((resolve) => {
+            setTimeout(() => resolve("pending"), 0);
+          }),
+        ]),
+      ).resolves.toMatchObject({
+        piSessionId: "pi-sdk-session-1",
+        payload: {
+          kind: "message",
+          role: "user",
+          body: "Build through SDK",
+          messageId: "pi-sdk:pi-sdk-session-1:user:0",
+        },
+      });
+    } finally {
+      resolvePrompt?.();
+      await response.catch(() => undefined);
+    }
+  });
+
+  it("delegates queued message and steering controls to the injected SDK runtime", async () => {
+    const queueFollowUp = vi.fn(async (message: string) => ({
+      id: "queued-1",
+      piSessionId: "pi-sdk-session-1",
+      body: message,
+      status: "pending" as const,
+      createdAt: "2026-07-01T00:00:00.000Z",
+    }));
+    const withdrawQueuedMessage = vi.fn(async (queuedMessageId: string) => ({
+      id: queuedMessageId,
+      piSessionId: "pi-sdk-session-1",
+      body: "Queue through SDK",
+      status: "withdrawn" as const,
+      createdAt: "2026-07-01T00:00:00.000Z",
+      withdrawnAt: "2026-07-01T00:00:01.000Z",
+    }));
+    const steerRun = vi.fn(async () => {});
+    const driver = createPiSdkDriver({
+      runtimeFactory: async () => ({
+        piSessionId: "pi-sdk-session-1",
+        sendPrompt: async () => {},
+        queueFollowUp,
+        withdrawQueuedMessage,
+        steerRun,
+      }),
+    });
+
+    await driver.createSession({
+      sessionId: "session-1",
+      projectId: "pig",
+      cwd: "/Users/void/code/opensource/Pig",
+    });
+
+    await expect(
+      driver.queueFollowUp({
+        piSessionId: "pi-sdk-session-1",
+        message: "Queue through SDK",
+      }),
+    ).resolves.toMatchObject({
+      id: "queued-1",
+      status: "pending",
+    });
+    await expect(
+      driver.withdrawQueuedMessage({
+        piSessionId: "pi-sdk-session-1",
+        queuedMessageId: "queued-1",
+      }),
+    ).resolves.toMatchObject({
+      id: "queued-1",
+      status: "withdrawn",
+    });
+    await expect(
+      driver.steerRun({
+        piSessionId: "pi-sdk-session-1",
+        message: "Steer through SDK",
+      }),
+    ).resolves.toMatchObject({
+      piSessionId: "pi-sdk-session-1",
+      type: "control",
+      payload: {
+        kind: "control",
+        role: "user",
+        title: "Steer",
+        body: "Steer through SDK",
+      },
+    });
+    expect(queueFollowUp).toHaveBeenCalledWith("Queue through SDK");
+    expect(withdrawQueuedMessage).toHaveBeenCalledWith("queued-1");
+    expect(steerRun).toHaveBeenCalledWith("Steer through SDK");
   });
 
   it("returns attributable unsupported errors for SDK capabilities that are not wired yet", async () => {

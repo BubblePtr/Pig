@@ -1,13 +1,66 @@
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createBackendService } from "./service";
 import { createFakePiRpcTransport } from "@pigui/core/testing";
+
+const createAgentSession = vi.hoisted(() => vi.fn());
+
+vi.mock("@earendil-works/pi-coding-agent", () => ({
+  createAgentSession,
+}));
 
 function fixtureAgentDir() {
   return join(process.cwd(), "fixtures/pi-agent");
 }
 
-describe("backend RPC service", () => {
+function createFakeSdkAgentSession() {
+  const listeners: Array<(event: unknown) => void> = [];
+  let resolvePrompt: (() => void) | undefined;
+  const session = {
+    sessionId: "pi-session-sdk",
+    isStreaming: false,
+    messages: [],
+    model: {
+      provider: { id: "openai" },
+      id: "gpt-5-codex",
+    },
+    prompt: vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolvePrompt = resolve;
+        }),
+    ),
+    abort: vi.fn(async () => {}),
+    dispose: vi.fn(),
+    subscribe: vi.fn((listener: (event: unknown) => void) => {
+      listeners.push(listener);
+
+      return vi.fn();
+    }),
+    getSessionStats: vi.fn(() => ({
+      tokens: { total: 42 },
+      cost: 0.001,
+    })),
+  };
+
+  return {
+    session,
+    emit(event: unknown) {
+      for (const listener of listeners) {
+        listener(event);
+      }
+    },
+    resolvePrompt() {
+      resolvePrompt?.();
+    },
+  };
+}
+
+describe("backend service", () => {
+  beforeEach(() => {
+    createAgentSession.mockReset();
+  });
+
   it("handles query commands through request/response envelopes", async () => {
     const service = createBackendService({
       agentDir: fixtureAgentDir(),
@@ -48,8 +101,10 @@ describe("backend RPC service", () => {
     });
   });
 
-  it("routes Runtime Gateway commands and forwards Gateway events through the same service", async () => {
+  it("uses the SDK driver for Runtime Gateway by default while retaining raw RPC commands", async () => {
+    const sdkSession = createFakeSdkAgentSession();
     const piRpc = createFakePiRpcTransport();
+    createAgentSession.mockResolvedValue({ session: sdkSession.session });
     const service = createBackendService({
       agentDir: fixtureAgentDir(),
       piRpc,
@@ -74,15 +129,23 @@ describe("backend RPC service", () => {
       id: "req-create",
       result: expect.objectContaining({
         sessionId: "session-1",
-        piSessionId: "pi-session-rpc",
+        runtimeId: "pi-sdk:session-1",
+        piSessionId: "pi-session-sdk",
       }),
     });
+    expect(createAgentSession).toHaveBeenCalledWith({
+      cwd: process.cwd(),
+      noTools: "all",
+    });
+    expect(piRpc.startCalls).toEqual([]);
+    expect(piRpc.commands).toEqual([]);
+
     await expect(
       service.handleRequest({
         id: "req-send",
         method: "send_prompt",
         params: {
-          piSessionId: "pi-session-rpc",
+          piSessionId: "pi-session-sdk",
           prompt: "Hello Pi",
         },
       }),
@@ -91,7 +154,7 @@ describe("backend RPC service", () => {
       result: expect.objectContaining({
         seq: 1,
         sessionId: "session-1",
-        piSessionId: "pi-session-rpc",
+        piSessionId: "pi-session-sdk",
         type: "message_update",
         payload: expect.objectContaining({
           role: "user",
@@ -99,14 +162,16 @@ describe("backend RPC service", () => {
         }),
       }),
     });
+    expect(sdkSession.session.prompt).toHaveBeenCalledWith("Hello Pi");
 
-    piRpc.emitEvent({
+    sdkSession.emit({
       type: "message_end",
       message: {
         role: "assistant",
-        content: [{ type: "text", text: "Hi from Pi" }],
+        content: [{ type: "text", text: "Hi from SDK" }],
       },
     });
+    sdkSession.resolvePrompt();
 
     expect(events).toEqual([
       {
@@ -114,7 +179,7 @@ describe("backend RPC service", () => {
         event: expect.objectContaining({
           seq: 1,
           sessionId: "session-1",
-          piSessionId: "pi-session-rpc",
+          piSessionId: "pi-session-sdk",
           type: "message_update",
           payload: expect.objectContaining({
             role: "user",
@@ -127,13 +192,37 @@ describe("backend RPC service", () => {
         event: expect.objectContaining({
           seq: 2,
           sessionId: "session-1",
-          piSessionId: "pi-session-rpc",
+          piSessionId: "pi-session-sdk",
           type: "message_update",
           payload: expect.objectContaining({
             role: "assistant",
-            body: "Hi from Pi",
+            body: "Hi from SDK",
           }),
         }),
+      },
+    ]);
+    await expect(
+      service.handleRequest({
+        id: "req-rpc",
+        method: "send_pi_rpc_command",
+        params: {
+          command: {
+            id: "legacy-rpc-1",
+            type: "get_state",
+          },
+        },
+      }),
+    ).resolves.toEqual({
+      id: "req-rpc",
+      result: expect.objectContaining({
+        command: "get_state",
+        success: true,
+      }),
+    });
+    expect(piRpc.commands).toEqual([
+      {
+        id: "legacy-rpc-1",
+        type: "get_state",
       },
     ]);
   });

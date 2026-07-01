@@ -169,6 +169,10 @@ function normalizeRpcEvent(input: {
       return null;
     }
 
+    if (role === "user") {
+      return null;
+    }
+
     return {
       piSessionId,
       turnId: maybeString(rawEvent.turnId) ?? undefined,

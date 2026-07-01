@@ -100,6 +100,10 @@ _Avoid_: Flight recorder, passive observer
 PiGUI 唯一支持的 agent runtime，负责模型调用、工具执行、session 状态、配置加载和 Pi 原生扩展能力。PiGUI 不把其他 agent runtime 纳入产品边界。
 _Avoid_: Generic agent runtime, ACP agent, provider
 
+**Runtime Gateway**:
+PiGUI 在客户端/后端与 Pi 接入实现之间固定的产品语义边界。它稳定表达 Session、Prompt、Queue、Steer、Stop、Snapshot 和 Runtime Event，不等同于 Pi SDK API 或 Pi RPC 原始协议。
+_Avoid_: AI Gateway, Pi SDK API, Pi RPC protocol, renderer bridge
+
 **Model**:
 由 Pi Runtime 使用的底层 LLM 选择，可以跨 provider 切换并影响 reasoning、成本和上下文能力。它不是 Agent Runtime；PiGUI 支持多模型不等于支持多 agent。
 _Avoid_: Runtime, agent, workspace
