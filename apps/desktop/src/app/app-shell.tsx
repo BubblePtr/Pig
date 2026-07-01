@@ -5,13 +5,11 @@ import {
   BarChart3,
   ChatAdd,
   ChevronRight,
-  Circle,
   FolderClosed,
   FolderOpen,
   FolderOpenState,
   LayoutAlignLeft,
   ListTree,
-  LoaderCircle,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -52,6 +50,11 @@ import {
   type SessionProjection,
   type SessionProjectionListItem,
 } from "@/entities/session/session-projection";
+import {
+  browserDevelopmentProjectId,
+  getProjectRegistryWithBrowserDevelopmentFallback,
+} from "@/shared/browser-development-data";
+import { DotMatrix } from "@/shared/ui/dot-matrix";
 import { revealProjectInFinder, selectProjectDirectory } from "@/shared/runtime";
 import {
   SidebarActionDropdown,
@@ -67,7 +70,7 @@ type AppFrameProps = {
   children: ReactNode;
 };
 
-const defaultSidebarProjectId = "/Users/void/code/opensource/Pig";
+const defaultSidebarProjectId = browserDevelopmentProjectId;
 
 function createSidebarProjection({
   id,
@@ -220,6 +223,10 @@ const trafficWidth = "88px";
 const chromeSafeLeft = "132px";
 const sidebarAnimationMs = 220;
 
+function getVisibleProjectRegistry() {
+  return getProjectRegistryWithBrowserDevelopmentFallback(getProjectRegistry());
+}
+
 function getActiveTab(pathname: string) {
   if (pathname.startsWith("/projects/")) {
     return "Sessions";
@@ -245,10 +252,7 @@ function SidebarSessionGlyph({
 }) {
   if (active) {
     return (
-      <LoaderCircle
-        aria-label="Active run"
-        className="size-4 animate-spin text-primary"
-      />
+      <DotMatrix aria-label="Active run" className="text-primary" />
     );
   }
 
@@ -262,7 +266,7 @@ function SidebarSessionGlyph({
     );
   }
 
-  return <Circle aria-hidden="true" className="size-2 fill-muted text-muted" />;
+  return null;
 }
 
 function DraftBadge() {
@@ -388,6 +392,7 @@ function ProjectNavigation({
   onAddProject,
   onToggleProject,
   onOpenSession,
+  onNewProjectSession,
   onRenameProject,
   onRevealProject,
   onRemoveProject,
@@ -401,6 +406,7 @@ function ProjectNavigation({
   onAddProject: (path: string) => void;
   onToggleProject: (projectId: string) => void;
   onOpenSession: (sessionId: string, projectId: string) => void;
+  onNewProjectSession: (projectId: string) => void;
   onRenameProject: (projectId: string) => void;
   onRevealProject: (projectId: string) => void;
   onRemoveProject: (projectId: string) => void;
@@ -482,6 +488,12 @@ function ProjectNavigation({
                   </Sidebar.MenuChip>
                 ) : null}
                 <Sidebar.MenuActions className="ml-auto">
+                  <Sidebar.MenuAction
+                    aria-label={`New Session for ${project.displayName}`}
+                    onPress={() => onNewProjectSession(project.id)}
+                  >
+                    <Plus aria-hidden="true" />
+                  </Sidebar.MenuAction>
                   <SidebarActionDropdown
                     ariaLabel={`Project actions for ${project.displayName}`}
                     icon={<MoreHorizontal aria-hidden="true" />}
@@ -670,6 +682,7 @@ function SidebarPanelContent({
   onToggleProject,
   onOpenSession,
   onNewSession,
+  onNewProjectSession,
   onRenameProject,
   onRevealProject,
   onRemoveProject,
@@ -684,6 +697,7 @@ function SidebarPanelContent({
   onToggleProject: (projectId: string) => void;
   onOpenSession: (sessionId: string, projectId: string) => void;
   onNewSession: () => void;
+  onNewProjectSession: (projectId: string) => void;
   onRenameProject: (projectId: string) => void;
   onRevealProject: (projectId: string) => void;
   onRemoveProject: (projectId: string) => void;
@@ -713,6 +727,7 @@ function SidebarPanelContent({
           onAddProject={onAddProject}
           onToggleProject={onToggleProject}
           onOpenSession={onOpenSession}
+          onNewProjectSession={onNewProjectSession}
           onRenameProject={onRenameProject}
           onRevealProject={onRevealProject}
           onRemoveProject={onRemoveProject}
@@ -851,7 +866,7 @@ export function AppFrame({
   const [localSessionProjections, setLocalSessionProjections] = useState(
     defaultSidebarProjectSessionProjections,
   );
-  const [projects, setProjects] = useState(() => getProjectRegistry());
+  const [projects, setProjects] = useState(() => getVisibleProjectRegistry());
   const [expandedProjects, setExpandedProjects] = useState(() =>
     readProjectExpansionState(),
   );
@@ -900,7 +915,10 @@ export function AppFrame({
     [],
   );
 
-  useEffect(() => subscribeProjectRegistry(() => setProjects(getProjectRegistry())), []);
+  useEffect(
+    () => subscribeProjectRegistry(() => setProjects(getVisibleProjectRegistry())),
+    [],
+  );
 
   const updateExpandedProjects = (
     updater: (expandedProjects: Record<string, boolean>) => Record<string, boolean>,
@@ -985,6 +1003,13 @@ export function AppFrame({
   };
   const handleNewSession = () => {
     openSessionDraft(null);
+  };
+  const handleNewProjectSession = (projectId: string) => {
+    updateExpandedProjects((currentExpandedProjects) => ({
+      ...currentExpandedProjects,
+      [projectId]: true,
+    }));
+    openSessionDraft(projectId, projectId);
   };
   const handleAddProject = (path: string) => {
     const result = addProjectToRegistry(path);
@@ -1106,6 +1131,7 @@ export function AppFrame({
             onToggleProject={handleToggleProject}
             onOpenSession={handleOpenSession}
             onNewSession={handleNewSession}
+            onNewProjectSession={handleNewProjectSession}
             onRenameProject={handleRenameProject}
             onRevealProject={handleRevealProject}
             onRemoveProject={handleRemoveProject}

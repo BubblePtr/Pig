@@ -58,9 +58,22 @@ function renderProjectSessions(
   return render(<RouterProvider router={router} />);
 }
 
+async function chooseProjectFromPicker(
+  user: ReturnType<typeof userEvent.setup>,
+  projectName: string,
+) {
+  await user.click(screen.getByTestId("project-picker-trigger"));
+  await user.click(await screen.findByRole("option", { name: projectName }));
+}
+
 describe("AgentWorkspaceSessionsPage", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    delete (
+      window as typeof window & {
+        __PIGUI_ENABLE_BROWSER_DEVELOPMENT_MOCKS__?: boolean;
+      }
+    ).__PIGUI_ENABLE_BROWSER_DEVELOPMENT_MOCKS__;
   });
 
   it("renders a Project-scoped Sessions view with Live Chat and the action surface", async () => {
@@ -182,6 +195,35 @@ describe("AgentWorkspaceSessionsPage", () => {
     expect(screen.queryByText("Agent Workspace shell")).not.toBeInTheDocument();
   });
 
+  it("uses browser development Project data for plain-browser draft debugging", async () => {
+    (
+      window as typeof window & {
+        __PIGUI_ENABLE_BROWSER_DEVELOPMENT_MOCKS__?: boolean;
+      }
+    ).__PIGUI_ENABLE_BROWSER_DEVELOPMENT_MOCKS__ = true;
+
+    renderProjectSessions("/projects/pig/sessions?view=draft", {
+      seedProjects: false,
+    });
+
+    const draftComposer = await screen.findByTestId("session-draft-composer");
+    const projectNavigation = screen.getByTestId("sidebar-projects");
+    const projectPickerTrigger = screen.getByTestId("project-picker-trigger");
+
+    expect(within(projectNavigation).getByText("Pig")).toBeInTheDocument();
+    expect(screen.queryByTestId("empty-workspace-state")).not.toBeInTheDocument();
+    expect(within(draftComposer).getByPlaceholderText("Do anything with Pi")).toHaveValue("");
+    expect(projectPickerTrigger).toHaveTextContent("Pig");
+    expect(getSessionDraft()).toBeNull();
+    expect(window.localStorage.getItem("pigui.projectRegistry.v1")).toBeNull();
+
+    delete (
+      window as typeof window & {
+        __PIGUI_ENABLE_BROWSER_DEVELOPMENT_MOCKS__?: boolean;
+      }
+    ).__PIGUI_ENABLE_BROWSER_DEVELOPMENT_MOCKS__;
+  });
+
   it("does not expose deferred terminal, file tree, or abort placeholders", async () => {
     renderProjectSessions();
 
@@ -274,8 +316,8 @@ describe("AgentWorkspaceSessionsPage", () => {
     renderProjectSessions();
 
     await user.click(await screen.findByRole("row", { name: "New Session" }));
-    await user.selectOptions(screen.getByLabelText("Target Project"), pigProjectPath);
-    fireEvent.change(await screen.findByPlaceholderText("Describe the first Pi prompt"), {
+    await chooseProjectFromPicker(user, "Pig");
+    fireEvent.change(await screen.findByPlaceholderText("Do anything with Pi"), {
       target: { value: "Create a draft-backed active Session" },
     });
     await user.click(screen.getByRole("button", { name: "Submit initial prompt" }));
@@ -924,23 +966,150 @@ describe("AgentWorkspaceSessionsPage", () => {
     await user.click(within(traceUsageNavigation).getByRole("row", { name: "New Session" }));
 
     const draftComposer = await screen.findByTestId("session-draft-composer");
-    const draftTitle = within(draftComposer).getByText("Session Draft");
-    const draftPrompt = within(draftComposer).getByPlaceholderText(
-      "Describe the first Pi prompt",
+    const emptyState = within(draftComposer).getByTestId("session-draft-empty-state");
+    const draftTitle = within(draftComposer).getByRole("heading", {
+      name: "Build something useful with PiGUI",
+    });
+    const shimmerText = within(draftTitle).getByText("PiGUI");
+    const suggestionRoot = emptyState.querySelector('[data-slot="prompt-suggestion"]');
+    const suggestionItems = emptyState.querySelector(
+      '[data-slot="prompt-suggestion-items"]',
     );
-    const targetProjectLabel = within(draftComposer).getByText("Target Project");
-    const targetProjectSelect = within(draftComposer).getByLabelText("Target Project");
+    const suggestedPrompt = "Design a launch page";
+    const suggestedLabels = [
+      "Design a launch page",
+      "Summarize meeting notes",
+      "Generate a sound brief",
+      "Plan a data model",
+    ];
+    const suggestedAction = within(draftComposer).getByRole("button", {
+      name: suggestedPrompt,
+    });
+    const draftPrompt = within(draftComposer).getByPlaceholderText(
+      "Do anything with Pi",
+    );
+    const promptInput = draftPrompt.closest('[data-slot="prompt-input"]');
+    const promptInputShell = promptInput?.querySelector(
+      '[data-slot="prompt-input-shell"]',
+    );
+    const projectPicker = within(draftComposer).getByTestId(
+      "session-draft-project-picker",
+    );
+    const projectPickerControl = within(projectPicker).getByTestId("project-picker");
+    const projectPickerTrigger = within(projectPickerControl).getByTestId(
+      "project-picker-trigger",
+    );
+    const projectPickerLabel = within(projectPickerTrigger).getByTestId(
+      "project-picker-label",
+    );
+    const projectPickerIcon = within(projectPickerControl).getByTestId(
+      "project-picker-folder-icon",
+    );
+    const inlineProjectSelect = projectPicker.querySelector(
+      '[data-slot="inline-select"]',
+    );
+    const inlineProjectIndicator = projectPicker.querySelector(
+      ".inline-select__indicator",
+    );
+    const nativeProjectSelect = projectPicker.querySelector(
+      '[data-slot="native-select"]',
+    );
 
-    expect(draftTitle).not.toHaveClass("font-medium");
-    expect(draftTitle).not.toHaveClass("font-semibold");
+    expect(draftComposer).toHaveClass("items-center", "justify-center");
+    expect(emptyState).toHaveClass("max-w-[46rem]");
     expect(draftComposer.closest(".card")).toBeNull();
+    expect(suggestionRoot).toHaveClass("prompt-suggestion--pill");
+    expect(suggestionItems).toHaveClass("prompt-suggestion__items--pill");
+    expect(suggestionRoot?.querySelector(".prompt-suggestion__item-end-icon")).toBeNull();
+    if (!promptInput || !promptInputShell || !suggestionRoot) {
+      throw new Error("Session Draft composer layout is incomplete.");
+    }
+    expect(promptInputShell).toHaveClass(
+      "border",
+      "border-border",
+      "bg-surface",
+      "shadow-surface",
+    );
+    expect(
+      Boolean(
+        promptInput.compareDocumentPosition(suggestionRoot) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ),
+    ).toBe(true);
+    expect(
+      Boolean(
+        promptInput.compareDocumentPosition(projectPickerTrigger) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ),
+    ).toBe(true);
+    expect(
+      Boolean(
+        projectPickerTrigger.compareDocumentPosition(suggestionRoot) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ),
+    ).toBe(true);
+    expect(projectPicker).toHaveClass("w-full", "justify-start");
+    expect(projectPickerControl).not.toHaveClass("w-[9rem]");
+    expect(projectPickerControl).not.toHaveClass(
+      "w-[clamp(7rem,calc(var(--project-picker-label-ch)*1ch+4.75rem),16rem)]",
+    );
+    expect(projectPickerControl).not.toHaveAttribute("style");
+    expect(projectPickerControl).toContainElement(projectPickerTrigger);
+    expect(projectPickerIcon).toHaveAttribute("aria-hidden", "true");
+    expect(projectPickerIcon).toHaveClass("text-muted");
+    expect(projectPickerLabel).toHaveTextContent("Select Project");
+    expect(projectPickerTrigger).toHaveAttribute("aria-label", "Target Project");
+    expect(projectPickerTrigger).toHaveClass(
+      "inline-flex",
+      "w-fit",
+      "border-transparent",
+      "bg-surface-secondary",
+      "text-sm",
+      "text-muted",
+      "hover:text-foreground",
+    );
+    expect(inlineProjectSelect).toBeInTheDocument();
+    expect(inlineProjectIndicator).toBeInTheDocument();
+    expect(nativeProjectSelect).not.toBeInTheDocument();
+    expect(
+      within(suggestedAction).getByTestId("session-draft-suggestion-icon"),
+    ).toBeInTheDocument();
+    expect(shimmerText).toHaveAttribute("data-slot", "text-shimmer");
+    expect(shimmerText).toHaveClass("text-shimmer");
+    expect(shimmerText.parentElement).toHaveClass("text-muted");
+    for (const label of suggestedLabels) {
+      expect(
+        within(draftComposer).getByRole("button", { name: label }),
+      ).toBeInTheDocument();
+    }
+    expect(suggestionRoot).toHaveClass("max-w-[35rem]");
+    expect(
+      within(draftComposer).queryByText(
+        "Start with a prompt, add files, or pick a suggestion to shape the first response.",
+      ),
+    ).not.toBeInTheDocument();
+    expect(draftTitle).toHaveClass("text-center");
+    expect(within(draftComposer).queryByText("HeroUI Pro AI")).not.toBeInTheDocument();
+    expect(within(draftComposer).queryByText("Target Project")).not.toBeInTheDocument();
+    expect(
+      within(draftComposer).queryByText(
+        "Start a new Pi Session from a focused prompt.",
+      ),
+    ).not.toBeInTheDocument();
+    expect(within(draftComposer).queryByText("Session Draft")).not.toBeInTheDocument();
     expect(draftPrompt).not.toHaveClass("font-medium");
-    expect(targetProjectLabel).not.toHaveClass("font-medium");
-    expect(targetProjectSelect).not.toHaveClass("font-medium");
-    expect(targetProjectSelect).toHaveValue("");
+    expect(projectPickerTrigger).not.toHaveClass("font-medium");
     expect(getSessionDraft()).toMatchObject({
       projectId: null,
       prompt: "",
+    });
+
+    await user.click(suggestedAction);
+
+    expect(draftPrompt).toHaveValue(suggestedPrompt);
+    expect(getSessionDraft()).toMatchObject({
+      projectId: null,
+      prompt: suggestedPrompt,
     });
     expect(within(projectNavigation).getAllByRole("row")).toHaveLength(
       initialRows.length,
@@ -970,7 +1139,7 @@ describe("AgentWorkspaceSessionsPage", () => {
     const firstRender = renderProjectSessions();
 
     await user.click(await screen.findByRole("row", { name: "New Session" }));
-    fireEvent.change(screen.getByPlaceholderText("Describe the first Pi prompt"), {
+    fireEvent.change(screen.getByPlaceholderText("Do anything with Pi"), {
       target: { value: "Keep this initial prompt" },
     });
 
@@ -981,14 +1150,14 @@ describe("AgentWorkspaceSessionsPage", () => {
 
     await user.click(screen.getByRole("row", { name: "New Session" }));
 
-    expect(screen.getByPlaceholderText("Describe the first Pi prompt")).toHaveValue(
+    expect(screen.getByPlaceholderText("Do anything with Pi")).toHaveValue(
       "Keep this initial prompt",
     );
 
     firstRender.unmount();
     renderProjectSessions("/projects/pig/sessions?view=draft");
 
-    expect(await screen.findByPlaceholderText("Describe the first Pi prompt")).toHaveValue(
+    expect(await screen.findByPlaceholderText("Do anything with Pi")).toHaveValue(
       "Keep this initial prompt",
     );
   });
@@ -1085,15 +1254,18 @@ describe("AgentWorkspaceSessionsPage", () => {
       />,
     );
 
-    const promptInput = await screen.findByPlaceholderText("Describe the first Pi prompt");
-    const projectSelector = screen.getByLabelText("Target Project");
+    const promptInput = await screen.findByPlaceholderText("Do anything with Pi");
+    const projectPickerTrigger = screen.getByTestId("project-picker-trigger");
+    const projectPickerControl = screen.getByTestId("project-picker");
 
     expect(promptInput).toHaveValue("Keep this prompt while switching target");
-    expect(projectSelector).toHaveValue(pigProjectPath);
+    expect(projectPickerTrigger).toHaveTextContent("Pig");
+    expect(projectPickerControl).not.toHaveAttribute("style");
 
-    await user.selectOptions(projectSelector, studyProjectPath);
+    await chooseProjectFromPicker(user, "study");
 
     expect(promptInput).toHaveValue("Keep this prompt while switching target");
+    expect(projectPickerTrigger).toHaveTextContent("study");
     expect(getSessionDraft()).toMatchObject({
       projectId: studyProjectPath,
       prompt: "Keep this prompt while switching target",
@@ -1199,10 +1371,12 @@ describe("AgentWorkspaceSessionsPage", () => {
       />,
     );
 
-    expect(await screen.findByPlaceholderText("Describe the first Pi prompt")).toHaveValue(
+    expect(await screen.findByPlaceholderText("Do anything with Pi")).toHaveValue(
       "Keep text after target removal",
     );
-    expect(screen.getByLabelText("Target Project")).toHaveValue("");
+    expect(screen.getByTestId("project-picker-trigger")).toHaveTextContent(
+      "Select Project",
+    );
 
     await user.click(screen.getByRole("button", { name: "Submit initial prompt" }));
 
@@ -1419,7 +1593,7 @@ describe("AgentWorkspaceSessionsPage", () => {
     expect(screen.getByText("sending prompt")).toBeInTheDocument();
     expect(screen.getByText("Pi rejected the initial prompt")).toBeInTheDocument();
     expect(getSessionDraft("pig-docs")?.prompt).toBe("Summarize the docs ADR");
-    expect(screen.getByPlaceholderText("Describe the first Pi prompt")).toHaveValue(
+    expect(screen.getByPlaceholderText("Do anything with Pi")).toHaveValue(
       "Summarize the docs ADR",
     );
   });

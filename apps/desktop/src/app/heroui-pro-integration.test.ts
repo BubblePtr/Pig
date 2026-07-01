@@ -10,6 +10,7 @@ import { ChatMessage } from "@heroui-pro/react/chat-message";
 import { KPI } from "@heroui-pro/react/kpi";
 import { NativeSelect } from "@heroui-pro/react/native-select";
 import { PromptInput } from "@heroui-pro/react/prompt-input";
+import { PromptSuggestion } from "@heroui-pro/react/prompt-suggestion";
 import { Segment } from "@heroui-pro/react/segment";
 import { Sidebar } from "@heroui-pro/react/sidebar";
 import { Timeline } from "@heroui-pro/react/timeline";
@@ -47,6 +48,7 @@ describe("HeroUI Pro integration", () => {
     expect(ChatMessage.Assistant).toBeTypeOf("function");
     expect(ChainOfThought.Step).toBeTypeOf("function");
     expect(PromptInput.Send).toBeTypeOf("function");
+    expect(PromptSuggestion.Item).toBeTypeOf("function");
   });
 
   it("loads the HeroUI Pro CSS required by the Full Chat surface", () => {
