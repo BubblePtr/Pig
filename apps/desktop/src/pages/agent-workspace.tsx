@@ -1,13 +1,29 @@
-import { Button, ScrollShadow, Tooltip } from "@heroui/react";
+import { Button, type Key, ListBox, ScrollShadow, Tooltip } from "@heroui/react";
 import { ChainOfThought } from "@heroui-pro/react/chain-of-thought";
 import { ChatConversation } from "@heroui-pro/react/chat-conversation";
 import { ChatMessage } from "@heroui-pro/react/chat-message";
+import { InlineSelect } from "@heroui-pro/react/inline-select";
 import { PromptInput } from "@heroui-pro/react/prompt-input";
+import { PromptSuggestion } from "@heroui-pro/react/prompt-suggestion";
 import { Sheet } from "@heroui-pro/react/sheet";
+import { TextShimmer } from "@heroui-pro/react/text-shimmer";
 import { useParams, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { AppFrame, defaultSidebarProjectSessionProjections } from "@/app/app-shell";
-import { Activity, Archive, GitBranch } from "@/shared/ui/icons";
+import {
+  Activity,
+  Archive,
+  Box,
+  FolderClosed,
+  GitBranch,
+  LayoutAlignLeft,
+  ListTree,
+  Sparkles,
+} from "@/shared/ui/icons";
+import {
+  getBrowserDevelopmentSessionDraft,
+  getProjectRegistryWithBrowserDevelopmentFallback,
+} from "@/shared/browser-development-data";
 import {
   createExecutionCheckoutManager,
   type ExecutionCheckoutManager,
@@ -150,6 +166,10 @@ const fixtureWorkspace: AgentWorkspaceFixture = {
     totalTokens: 18_420,
   },
 };
+
+function getVisibleProjectRegistry() {
+  return getProjectRegistryWithBrowserDevelopmentFallback(getProjectRegistry());
+}
 
 function LiveChatMessage({
   message,
@@ -485,6 +505,117 @@ function isReadOnlyProjection(projection: SessionProjection | null) {
   );
 }
 
+const SESSION_DRAFT_SUGGESTED_PROMPTS = [
+  {
+    Icon: LayoutAlignLeft,
+    id: "launch-page",
+    label: "Design a launch page",
+    prompt: "Design a launch page",
+  },
+  {
+    Icon: ListTree,
+    id: "meeting-notes",
+    label: "Summarize meeting notes",
+    prompt: "Summarize meeting notes",
+  },
+  {
+    Icon: Sparkles,
+    id: "sound-brief",
+    label: "Generate a sound brief",
+    prompt: "Generate a sound brief",
+  },
+  {
+    Icon: Box,
+    id: "data-model",
+    label: "Plan a data model",
+    prompt: "Plan a data model",
+  },
+] as const;
+
+const projectPickerPlaceholder = "Select Project";
+const projectPickerPlaceholderKey = "__project-picker-placeholder__";
+
+function projectPickerKeyToProjectId(key: Key | null) {
+  if (key === null || key === projectPickerPlaceholderKey) {
+    return null;
+  }
+
+  return String(key);
+}
+
+function ProjectPicker({
+  projects,
+  selectedProjectId,
+  onProjectChange,
+}: {
+  projects: ProjectRegistryEntry[];
+  selectedProjectId: string | null;
+  onProjectChange: (projectId: string | null) => void;
+}) {
+  const selectedProject = projects.find((project) => project.id === selectedProjectId);
+  const displayLabel = selectedProject?.displayName ?? projectPickerPlaceholder;
+  const selectedPickerKey = selectedProject?.id ?? projectPickerPlaceholderKey;
+
+  return (
+    <div className="max-w-full" data-testid="project-picker">
+      <InlineSelect
+        aria-label="Target Project"
+        value={selectedPickerKey}
+        onChange={(key) => {
+          onProjectChange(projectPickerKeyToProjectId(key));
+        }}
+      >
+        <InlineSelect.Trigger
+          aria-label="Target Project"
+          className="inline-flex min-h-8 w-fit max-w-full min-w-0 items-center gap-2 rounded-xl border border-transparent bg-surface-secondary px-2.5 py-1.5 text-sm text-muted transition-colors hover:text-foreground"
+          data-testid="project-picker-trigger"
+        >
+          <FolderClosed
+            aria-hidden="true"
+            className="size-4 shrink-0 text-muted"
+            data-testid="project-picker-folder-icon"
+          />
+          <span
+            className="min-w-0 truncate"
+            data-testid="project-picker-label"
+          >
+            {displayLabel}
+          </span>
+          <InlineSelect.Indicator className="size-4 shrink-0 text-muted" />
+        </InlineSelect.Trigger>
+        <InlineSelect.Popover
+          className="w-[min(18rem,calc(100vw-2rem))]"
+          placement="bottom start"
+        >
+          <ListBox aria-label="Projects">
+            <ListBox.Item
+              id={projectPickerPlaceholderKey}
+              textValue={projectPickerPlaceholder}
+            >
+              <span className="truncate text-muted">{projectPickerPlaceholder}</span>
+              <ListBox.ItemIndicator />
+            </ListBox.Item>
+            {projects.map((project) => (
+              <ListBox.Item
+                key={project.id}
+                id={project.id}
+                textValue={project.displayName}
+              >
+                <FolderClosed
+                  aria-hidden="true"
+                  className="size-4 shrink-0 text-muted"
+                />
+                <span className="min-w-0 truncate">{project.displayName}</span>
+                <ListBox.ItemIndicator />
+              </ListBox.Item>
+            ))}
+          </ListBox>
+        </InlineSelect.Popover>
+      </InlineSelect>
+    </div>
+  );
+}
+
 function SessionDraftComposer({
   draft,
   projects,
@@ -501,6 +632,10 @@ function SessionDraftComposer({
   onDraftSubmit: (event: SessionDraftSubmitEvent) => void;
 }) {
   const [targetError, setTargetError] = useState(false);
+  const applySuggestedPrompt = (prompt: string) => {
+    setTargetError(false);
+    onDraftChange(prompt);
+  };
   const submitDraft = () => {
     const prompt = draft.prompt.trim();
 
@@ -518,91 +653,113 @@ function SessionDraftComposer({
 
   return (
     <section
-      className="flex h-full min-h-0 flex-col justify-end px-4 pb-4 pt-6"
+      className="flex h-full min-h-0 flex-col items-center justify-center px-6 py-8"
       data-testid="session-draft-composer"
     >
-      <div className="mx-auto w-full max-w-[44rem]">
-        <h2 className="mb-3 text-sm text-foreground">
-          Session Draft
-        </h2>
-        <div className="mb-3 flex items-center gap-2">
-          <label className="text-sm text-muted" htmlFor="session-draft-project">
-            Target Project
-          </label>
-          <select
-            aria-label="Target Project"
-            className="h-8 min-w-0 rounded-md border border-default bg-surface px-2 text-sm text-foreground outline-none focus-visible:border-primary"
-            id="session-draft-project"
-            value={draft.projectId ?? ""}
-            onChange={(event) => {
-              setTargetError(false);
-              onDraftTargetChange(event.currentTarget.value || null);
-            }}
-          >
-            <option value="">Select Project</option>
-            {projects.map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.displayName}
-              </option>
-            ))}
-          </select>
+      <div
+        className="flex w-full max-w-[46rem] flex-col items-center justify-center gap-6"
+        data-testid="session-draft-empty-state"
+      >
+        <div className="flex flex-col items-center gap-2 text-center">
+          <h2 className="text-center text-3xl font-normal tracking-tight text-foreground">
+            Build something useful with{" "}
+            <span className="text-muted">
+              <TextShimmer>PiGUI</TextShimmer>
+            </span>
+          </h2>
         </div>
-        {targetError ? (
-          <p className="mb-3 text-sm text-danger">
-            Select a Project before submitting.
-          </p>
-        ) : null}
-        {creationProjection ? (
-          <div
-            aria-live="polite"
-            className="mb-3 rounded-md border border-border bg-surface px-3 py-2 text-sm"
-            data-testid="session-creation-status"
+        <div className="flex w-full flex-col gap-3">
+          <PromptInput
+            className="w-full"
+            value={draft.prompt}
+            variant="primary"
+            onSubmit={submitDraft}
+            onValueChange={onDraftChange}
           >
-            {creationProjection.failure ? (
-              <>
-                <p className="font-medium text-foreground">
-                  Session creation failed
-                </p>
-                <dl className="mt-2 grid gap-1">
-                  <div className="flex items-center gap-2">
-                    <dt className="text-muted">Stage</dt>
-                    <dd className="font-medium text-foreground">
-                      {creationProjection.failure.stage}
-                    </dd>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <dt className="text-muted">Error</dt>
-                    <dd className="text-foreground">
-                      {creationProjection.failure.message}
-                    </dd>
-                  </div>
-                </dl>
-              </>
-            ) : (
-              <p className="font-medium text-foreground">
-                {creationProjection.creationStage}
-              </p>
-            )}
+            <PromptInput.Shell className="border border-border bg-surface shadow-surface">
+              <PromptInput.Content>
+                <PromptInput.TextArea placeholder="Do anything with Pi" />
+              </PromptInput.Content>
+              <PromptInput.Toolbar>
+                <PromptInput.ToolbarEnd>
+                  <PromptInput.Send aria-label="Submit initial prompt" />
+                </PromptInput.ToolbarEnd>
+              </PromptInput.Toolbar>
+            </PromptInput.Shell>
+          </PromptInput>
+          <div
+            className="flex w-full justify-start"
+            data-testid="session-draft-project-picker"
+          >
+            <ProjectPicker
+              projects={projects}
+              selectedProjectId={draft.projectId}
+              onProjectChange={(projectId) => {
+                setTargetError(false);
+                onDraftTargetChange(projectId);
+              }}
+            />
           </div>
-        ) : null}
-        <PromptInput
-          className="w-full"
-          value={draft.prompt}
-          variant="primary"
-          onSubmit={submitDraft}
-          onValueChange={onDraftChange}
-        >
-          <PromptInput.Shell>
-            <PromptInput.Content>
-              <PromptInput.TextArea placeholder="Describe the first Pi prompt" />
-            </PromptInput.Content>
-            <PromptInput.Toolbar>
-              <PromptInput.ToolbarEnd>
-                <PromptInput.Send aria-label="Submit initial prompt" />
-              </PromptInput.ToolbarEnd>
-            </PromptInput.Toolbar>
-          </PromptInput.Shell>
-        </PromptInput>
+          {targetError ? (
+            <p className="text-sm text-danger">
+              Select a Project before submitting.
+            </p>
+          ) : null}
+          {creationProjection ? (
+            <div
+              aria-live="polite"
+              className="rounded-md border border-border bg-surface px-3 py-2 text-sm"
+              data-testid="session-creation-status"
+            >
+              {creationProjection.failure ? (
+                <>
+                  <p className="font-medium text-foreground">
+                    Session creation failed
+                  </p>
+                  <dl className="mt-2 grid gap-1">
+                    <div className="flex items-center gap-2">
+                      <dt className="text-muted">Stage</dt>
+                      <dd className="font-medium text-foreground">
+                        {creationProjection.failure.stage}
+                      </dd>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <dt className="text-muted">Error</dt>
+                      <dd className="text-foreground">
+                        {creationProjection.failure.message}
+                      </dd>
+                    </div>
+                  </dl>
+                </>
+              ) : (
+                <p className="font-medium text-foreground">
+                  {creationProjection.creationStage}
+                </p>
+              )}
+            </div>
+          ) : null}
+        </div>
+        <PromptSuggestion className="w-full max-w-[35rem]">
+          <PromptSuggestion.Items className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {SESSION_DRAFT_SUGGESTED_PROMPTS.map(({ Icon, id, label, prompt }) => (
+              <PromptSuggestion.Item
+                key={id}
+                className="items-center justify-start"
+                showEndIcon={false}
+                onPress={() => applySuggestedPrompt(prompt)}
+              >
+                <span className="inline-flex min-w-0 items-center gap-2">
+                  <Icon
+                    aria-hidden="true"
+                    className="size-4 shrink-0"
+                    data-testid="session-draft-suggestion-icon"
+                  />
+                  <span className="truncate">{label}</span>
+                </span>
+              </PromptSuggestion.Item>
+            ))}
+          </PromptSuggestion.Items>
+        </PromptSuggestion>
       </div>
     </section>
   );
@@ -984,7 +1141,9 @@ function LiveSessionColumn({
   onProjectionChange?: (projection: SessionProjection) => void;
   onLatestMessageRendered?: (sessionId: string) => void;
 }) {
-  const [registryProjects, setRegistryProjects] = useState(() => getProjectRegistry());
+  const [registryProjects, setRegistryProjects] = useState(() =>
+    getVisibleProjectRegistry(),
+  );
   const fallbackProject: ProjectRegistryEntry = {
     id: projectId,
     path: workspace.projectRoot,
@@ -995,8 +1154,11 @@ function LiveSessionColumn({
   const projects = usingRegistryProjects ? registryProjects : [fallbackProject];
   const projectIds = projects.map((project) => project.id);
   const projectIdsKey = projectIds.join("\n");
+  const getVisibleSessionDraft = () =>
+    getSessionDraft({ projectIds }) ??
+    (showDraft ? getBrowserDevelopmentSessionDraft(projectIds) : null);
   const [sessionDraft, setSessionDraft] = useState<SessionDraft | null>(() =>
-    getSessionDraft({ projectIds }),
+    getVisibleSessionDraft(),
   );
   const [creationProjection, setCreationProjection] =
     useState<SessionProjection | null>(null);
@@ -1004,17 +1166,23 @@ function LiveSessionColumn({
     useState<SessionProjection | null>(null);
   const [stoppingRun, setStoppingRun] = useState(false);
 
-  useEffect(() => subscribeProjectRegistry(() => setRegistryProjects(getProjectRegistry())), []);
+  useEffect(
+    () =>
+      subscribeProjectRegistry(() =>
+        setRegistryProjects(getVisibleProjectRegistry()),
+      ),
+    [],
+  );
 
   useEffect(() => {
-    setSessionDraft(getSessionDraft({ projectIds }));
+    setSessionDraft(getVisibleSessionDraft());
     setCreationProjection(null);
     setInteractionProjection(null);
 
     return subscribeSessionDrafts(() => {
-      setSessionDraft(getSessionDraft({ projectIds }));
+      setSessionDraft(getVisibleSessionDraft());
     });
-  }, [projectId, projectIdsKey]);
+  }, [projectId, projectIdsKey, showDraft]);
 
   useEffect(() => {
     setInteractionProjection(null);
@@ -1388,7 +1556,9 @@ export function AgentWorkspaceSessionsPage() {
     },
   });
   const workspace = fixtureWorkspace;
-  const [registryProjects, setRegistryProjects] = useState(() => getProjectRegistry());
+  const [registryProjects, setRegistryProjects] = useState(() =>
+    getVisibleProjectRegistry(),
+  );
   const [runtimeBridge] = useState(() => createDefaultPiRuntimeBridge());
   const [sessionProjections, setSessionProjections] = useState(
     defaultSidebarProjectSessionProjections,
@@ -1403,7 +1573,13 @@ export function AgentWorkspaceSessionsPage() {
       (projection) => projection.id === selectedSessionId,
     ) ?? null;
 
-  useEffect(() => subscribeProjectRegistry(() => setRegistryProjects(getProjectRegistry())), []);
+  useEffect(
+    () =>
+      subscribeProjectRegistry(() =>
+        setRegistryProjects(getVisibleProjectRegistry()),
+      ),
+    [],
+  );
 
   const handleProjectionChange = (nextProjection: SessionProjection) => {
     setSelectedSessionId(nextProjection.id);

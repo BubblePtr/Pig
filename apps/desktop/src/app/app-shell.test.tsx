@@ -163,7 +163,13 @@ describe("AppFrame", () => {
       "data-pigui-session-title",
     );
     expect(within(projectNavigation).getByText("Trace boundary pass")).toBeInTheDocument();
-    expect(within(projectNavigation).getByLabelText("Active run")).toBeInTheDocument();
+    const activeRunIndicator = within(projectNavigation).getByLabelText("Active run");
+
+    expect(activeRunIndicator).toHaveAttribute("data-slot", "dot-matrix");
+    expect(activeRunIndicator).toHaveAttribute("data-state", "loading");
+    expect(activeRunIndicator).not.toHaveClass("animate-spin");
+    expect(activeRunIndicator.querySelector("svg")).toHaveAttribute("viewBox", "0 0 16 16");
+    expect(activeRunIndicator.querySelectorAll('[data-slot="dot-matrix-dot"]')).toHaveLength(16);
     const activeTime = within(projectNavigation).getByText("08:06");
 
     expect(activeTime).toHaveClass("text-muted", "text-[10px]", "leading-none");
@@ -177,6 +183,9 @@ describe("AppFrame", () => {
     const projectActionsButton = within(projectGroup).getByRole("button", {
       name: "Project actions for Pig",
     });
+    const projectNewSessionButton = within(projectGroup).getByRole("button", {
+      name: "New Session for Pig",
+    });
 
     expect(topRows.map((row) => row.getAttribute("aria-label"))).toEqual([
       "New Session",
@@ -187,9 +196,8 @@ describe("AppFrame", () => {
     expect(
       within(projectNavigation).queryByRole("row", { name: "New Session" }),
     ).not.toBeInTheDocument();
-    expect(
-      within(projectGroup).queryByRole("button", { name: "New Session for Pig" }),
-    ).not.toBeInTheDocument();
+    expect(projectNewSessionButton).toHaveAttribute("data-slot", "sidebar-menu-action");
+    expect(projectNewSessionButton).toHaveClass("sidebar__menu-action");
     expect(projectActionsButton).toHaveAttribute("data-slot", "sidebar-menu-action");
     expect(projectActionsButton).toHaveClass("sidebar__menu-action");
     expect(projectActionsButton).not.toHaveClass("size-5", "size-6", "hover:bg-muted/10");
@@ -212,20 +220,27 @@ describe("AppFrame", () => {
     );
 
     const projectActions = projectHeader?.querySelector('[data-slot="sidebar-menu-actions"]');
+    const projectActionButtons = within(projectActions as HTMLElement).getAllByRole("button");
+    const projectNewSessionButton = within(projectHeader as HTMLElement).getByRole("button", {
+      name: "New Session for Pig",
+    });
     const projectActionsButton = within(projectHeader as HTMLElement).getByRole("button", {
       name: "Project actions for Pig",
     });
 
     expect(projectActions).toBeInTheDocument();
+    expect(projectActionButtons.map((button) => button.getAttribute("aria-label"))).toEqual([
+      "New Session for Pig",
+      "Project actions for Pig",
+    ]);
+    expect(projectNewSessionButton.closest('[data-slot="sidebar-menu-actions"]')).toBe(
+      projectActions,
+    );
     expect(projectActionsButton.closest('[data-slot="sidebar-menu-actions"]')).toBe(
       projectActions,
     );
+    expect(projectNewSessionButton).toHaveAttribute("data-slot", "sidebar-menu-action");
     expect(projectActionsButton).toHaveAttribute("data-slot", "sidebar-menu-action");
-    expect(
-      within(projectHeader as HTMLElement).queryByRole("button", {
-        name: "New Session for Pig",
-      }),
-    ).not.toBeInTheDocument();
   });
 
   it("uses folder state icons for Project expansion and swaps to a chevron affordance on hover", async () => {
@@ -282,8 +297,16 @@ describe("AppFrame", () => {
       "Trace boundary pass",
       "Usage evidence review",
     ]);
-    expect(within(sessionRows[0]).getByLabelText("Active run")).toBeInTheDocument();
+    const activeRunIndicator = within(sessionRows[0]).getByLabelText("Active run");
+
+    expect(activeRunIndicator).toHaveAttribute("data-slot", "dot-matrix");
+    expect(activeRunIndicator).toHaveAttribute("data-state", "loading");
+    expect(activeRunIndicator.querySelector("svg")).toHaveAttribute("viewBox", "0 0 16 16");
+    expect(activeRunIndicator.querySelectorAll('[data-slot="dot-matrix-dot"]')).toHaveLength(16);
     expect(within(sessionRows[1]).getByLabelText("Unread result")).toBeInTheDocument();
+    expect(
+      sessionRows[2].querySelector('[data-slot="sidebar-menu-icon"]'),
+    ).toBeEmptyDOMElement();
     expect(within(projectNavigation).queryByText("Archived checkout snapshot")).not.toBeInTheDocument();
     expect(within(projectNavigation).queryByText(/Running|Completed|Failed|Waiting/)).not.toBeInTheDocument();
   });
@@ -388,8 +411,8 @@ describe("AppFrame", () => {
     });
 
     expect(
-      within(projectGroup).queryByRole("button", { name: "New Session for Pig" }),
-    ).not.toBeInTheDocument();
+      within(projectGroup).getByRole("button", { name: "New Session for Pig" }),
+    ).toHaveAttribute("data-slot", "sidebar-menu-action");
     expect(
       within(projectNavigation).queryByRole("row", { name: "New Session" }),
     ).not.toBeInTheDocument();
@@ -462,6 +485,7 @@ describe("AppFrame", () => {
     expect(projectActionsMenu).toHaveAttribute("data-slot", "dropdown-menu");
     expect(projectActionsPopover).toHaveClass("pigui-sidebar-action-dropdown__popover");
     expect(projectActionsMenu).toHaveClass("pigui-sidebar-action-dropdown__menu");
+    expect(within(projectActionsMenu).queryByRole("menuitem", { name: "New Session" })).toBeNull();
     expect(renameProjectItem).toHaveClass("pigui-sidebar-action-dropdown__item");
     expect(revealProjectItem).toHaveClass("pigui-sidebar-action-dropdown__item");
     expect(removeProjectItem).toHaveClass("pigui-sidebar-action-dropdown__item");
@@ -482,6 +506,27 @@ describe("AppFrame", () => {
       projectId: null,
       prompt: "Keep this prompt",
     });
+  });
+
+  it("opens a Project-scoped New Session draft from the sidebar action button", async () => {
+    const user = userEvent.setup();
+
+    saveSessionDraft(null, "Prompt from the global draft");
+
+    renderAppFrame("/projects/pig/sessions");
+    const projectGroup = await screen.findByTestId("sidebar-projects");
+
+    await user.click(within(projectGroup).getByRole("button", { name: "New Session for Pig" }));
+
+    expect(getSessionDraft()).toMatchObject({
+      projectId: pigProjectPath,
+      prompt: "Prompt from the global draft",
+    });
+    expect(
+      within(screen.getByLabelText("Trace and usage navigation")).getByRole("row", {
+        name: "New Session",
+      }),
+    ).toHaveAttribute("data-current", "true");
   });
 
   it("renames a Project from the sidebar action menu", async () => {
