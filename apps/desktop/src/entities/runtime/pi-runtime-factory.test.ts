@@ -36,7 +36,7 @@ describe("default Pi runtime bridge factory", () => {
     });
   });
 
-  it("uses the Runtime Gateway bridge in Electron by default", async () => {
+  it("uses the Runtime Gateway client in Electron by default", async () => {
     const invocations: Array<{ command: string; args?: Record<string, unknown> }> = [];
     const invoke = async <T,>(command: string, args?: Record<string, unknown>) => {
       invocations.push({ command, args });

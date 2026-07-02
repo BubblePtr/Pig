@@ -5,10 +5,12 @@ import type {
   PiRpcTransportStartInput,
   RuntimeGatewayEventEnvelope,
 } from "@pigui/core";
+import * as piSdk from "@earendil-works/pi-coding-agent";
 import { buildConfigInventory } from "./config";
 import { createNodeExecutionCheckoutGitClient } from "./execution-checkout";
 import { createNodePiRpcProcess } from "./pi-rpc";
-import { createPiRpcProcessDriver } from "./pi-rpc-driver";
+import { createPiSdkDriver } from "./pi-sdk-driver";
+import { createPublicPiSdkRuntimeFactory } from "./pi-sdk-runtime-adapter";
 import {
   createRuntimeGatewayService,
   type PiRuntimeDriver,
@@ -58,7 +60,11 @@ export function createBackendService(options: BackendServiceOptions = {}): Backe
   const gitClient = options.gitClient ?? createNodeExecutionCheckoutGitClient();
   const piRpc = options.piRpc ?? createNodePiRpcProcess();
   const runtimeGateway = createRuntimeGatewayService({
-    driver: options.runtimeDriver ?? createPiRpcProcessDriver({ transport: piRpc }),
+    driver:
+      options.runtimeDriver ??
+      createPiSdkDriver({
+        runtimeFactory: createPublicPiSdkRuntimeFactory({ sdk: piSdk }),
+      }),
   });
   const listeners = new Set<(event: BackendRpcEvent) => void>();
 

@@ -100,4 +100,49 @@ describe("Pi RPC process driver", () => {
       }),
     ]);
   });
+
+  it("drops raw RPC user message lifecycle events so the prompt is projected once", async () => {
+    const transport = createFakePiRpcTransport({
+      sessionId: "pi-session-rpc",
+      now: () => "2026-07-01T08:00:00.000Z",
+    });
+    const driver = createPiRpcProcessDriver({
+      transport,
+      now: () => "2026-07-01T08:00:00.000Z",
+    });
+    const observedEvents: unknown[] = [];
+
+    driver.onEvent((event) => observedEvents.push(event));
+
+    const snapshot = await driver.createSession({
+      sessionId: "app-session-1",
+      projectId: "pig",
+      cwd: "/Users/void/code/opensource/Pig",
+    });
+    const accepted = await driver.sendPrompt({
+      piSessionId: snapshot.piSessionId,
+      prompt: "Why is the prompt duplicated?",
+    });
+
+    for (const type of ["message_start", "message_end"] as const) {
+      transport.emitEvent({
+        type,
+        message: {
+          role: "user",
+          content: [{ type: "text", text: "Why is the prompt duplicated?" }],
+          timestamp: 1_783_564_800_000,
+        },
+      });
+    }
+
+    expect(accepted).toMatchObject({
+      type: "message_update",
+      payload: {
+        kind: "message",
+        role: "user",
+        body: "Why is the prompt duplicated?",
+      },
+    });
+    expect(observedEvents).toEqual([]);
+  });
 });

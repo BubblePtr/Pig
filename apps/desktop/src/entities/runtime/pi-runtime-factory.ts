@@ -1,6 +1,6 @@
 import type { PiRpcTransport, PiRuntimeBridge } from "@/entities/runtime/pi-runtime-bridge";
 import { createPiRpcRuntimeBridge } from "@/entities/runtime/pi-rpc-runtime-bridge";
-import { createPiRuntimeGatewayBridge } from "@/entities/runtime/gateway-runtime-bridge";
+import { createRuntimeGatewayClient } from "@/entities/runtime/runtime-gateway-client";
 import { createInMemoryPiRuntimeBridge } from "@/entities/runtime/in-memory-pi-runtime-bridge";
 import { isElectronRuntime } from "@/shared/runtime";
 
@@ -19,7 +19,7 @@ export function createDefaultPiRuntimeBridge(
   }
 
   if (!options.transport) {
-    return createPiRuntimeGatewayBridge({
+    return createRuntimeGatewayClient({
       now: options.now,
     });
   }

@@ -24,7 +24,7 @@ type InvokeGatewayMethod = <T>(
 ) => Promise<T>;
 type SubscribeBackendEvent = (listener: (event: BackendRpcEvent) => void) => () => void;
 
-export type PiRuntimeGatewayBridgeOptions = {
+export type RuntimeGatewayClientOptions = {
   invoke?: InvokeGatewayMethod;
   onBackendEvent?: SubscribeBackendEvent;
   now?: () => string;
@@ -226,8 +226,8 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
-export function createPiRuntimeGatewayBridge(
-  options: PiRuntimeGatewayBridgeOptions = {},
+export function createRuntimeGatewayClient(
+  options: RuntimeGatewayClientOptions = {},
 ): PiRuntimeBridge {
   const invoke = options.invoke ?? invokeRuntime;
   const onBackendEvent = options.onBackendEvent ?? onRuntimeBackendEvent;

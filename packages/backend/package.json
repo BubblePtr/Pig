@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "scripts": {
+    "spike:pi-sdk": "bun run scripts/spike-pi-sdk-driver.ts"
+  },
   "exports": {
     ".": "./src/index.ts"
   },
